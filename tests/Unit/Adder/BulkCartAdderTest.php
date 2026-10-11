@@ -16,12 +16,13 @@ use Sylius\Component\Core\Model\OrderItem;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Model\OrderItemUnit;
 use Sylius\Component\Core\Model\Product;
+use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariant;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Inventory\Checker\AvailabilityChecker;
 use Sylius\Component\Order\Factory\OrderItemUnitFactory;
 use Sylius\Component\Order\Modifier\OrderItemQuantityModifier;
-use Sylius\Resource\Factory\Factory;
+use Sylius\Resource\Factory\FactoryInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
@@ -109,9 +110,10 @@ final class BulkCartAdderTest extends TestCase
         $disabledProduct->getProduct()?->setEnabled(false);
         $otherChannel = new Channel();
         $otherChannel->setCode('OTHER');
-        $elsewhere = $this->variant('ELSEWHERE');
-        $elsewhere->getProduct()?->removeChannel($this->channel);
-        $elsewhere->getProduct()?->addChannel($otherChannel);
+        $elsewhere = $this->variant('ELSEWHERE')->getProduct();
+        self::assertInstanceOf(ProductInterface::class, $elsewhere);
+        $elsewhere->removeChannel($this->channel);
+        $elsewhere->addChannel($otherChannel);
         $this->variant('NO-PRICE', null);
         $this->variant('LOW', 1000, 5);
 
@@ -335,7 +337,7 @@ final class BulkCartAdderTest extends TestCase
                     return $this->test->locked();
                 }
             },
-            new Factory(OrderItem::class),
+            self::cartItemFactory(),
             new OrderItemQuantityModifier(new OrderItemUnitFactory(OrderItemUnit::class)),
             $this->processor,
             $this->manager,
@@ -343,6 +345,19 @@ final class BulkCartAdderTest extends TestCase
             9999,
             $rounding,
         );
+    }
+
+    /** @return FactoryInterface<OrderItemInterface> */
+    private static function cartItemFactory(): FactoryInterface
+    {
+        return new
+        /** @implements FactoryInterface<OrderItemInterface> */
+        class() implements FactoryInterface {
+            public function createNew(): OrderItemInterface
+            {
+                return new OrderItem();
+            }
+        };
     }
 
     public function constraint(): ?QuantityConstraint

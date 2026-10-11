@@ -7,6 +7,7 @@ namespace Tests\Tmonier\SyliusQuickOrderPlugin\Unit\DependencyInjection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
 use Tests\Tmonier\SyliusQuickOrderPlugin\Cart\FakeQuoteCartChecker;
 use Tmonier\SyliusQuickOrderPlugin\DependencyInjection\Compiler\QuoteRequestBridgePass;
 
@@ -28,6 +29,8 @@ final class QuoteRequestBridgePassTest extends TestCase
 
         $definition = $container->getDefinition('tmonier_quick_order.locked_cart_checker.quote_request');
         self::assertTrue($definition->hasTag('tmonier_quick_order.locked_cart_checker'));
-        self::assertSame(QuoteRequestBridgePass::QUOTE_CART_CHECKER, (string) $definition->getArgument(0));
+        $argument = $definition->getArgument(0);
+        self::assertInstanceOf(Reference::class, $argument);
+        self::assertSame(QuoteRequestBridgePass::QUOTE_CART_CHECKER, (string) $argument);
     }
 }

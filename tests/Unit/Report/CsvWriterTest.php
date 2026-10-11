@@ -52,7 +52,9 @@ final class CsvWriterTest extends TestCase
         return new class() implements TranslatorInterface {
             public function trans(string $id, array $parameters = [], ?string $domain = null, ?string $locale = null): string
             {
-                return 'tmonier_quick_order.status.insufficient_stock' === $id ? $id . '|' . $parameters['%available%'] : $id;
+                $available = $parameters['%available%'] ?? '';
+
+                return 'tmonier_quick_order.status.insufficient_stock' === $id && \is_string($available) ? $id . '|' . $available : $id;
             }
 
             public function getLocale(): string

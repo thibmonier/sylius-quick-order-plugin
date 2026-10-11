@@ -107,7 +107,7 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
         self::assertSame($oneByOne->getShippingTotal(), $bulk->getShippingTotal());
         self::assertSame($oneByOne->getTotal(), $bulk->getTotal());
         // Both test promotions applied (10% of 26646 + 700), whatever the fixture promotions do.
-        $labels = array_map(static fn (AdjustmentInterface $adjustment): string => (string) $adjustment->getLabel(), $bulk->getAdjustmentsRecursively(AdjustmentInterface::ORDER_PROMOTION_ADJUSTMENT)->toArray());
+        $labels = array_map(static fn (\Sylius\Component\Order\Model\AdjustmentInterface $adjustment): string => (string) $adjustment->getLabel(), $bulk->getAdjustmentsRecursively(AdjustmentInterface::ORDER_PROMOTION_ADJUSTMENT)->toArray());
         self::assertContains('Quick order test cart_quantity', $labels);
         self::assertContains('Quick order test item_total', $labels);
     }
@@ -132,8 +132,6 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
 
     private function adder(OrderProcessorInterface $processor): BulkCartAdder
     {
-        $container = self::getContainer();
-
         return new BulkCartAdder(
             $this->service('tmonier_quick_order.variant_lookup', \Tmonier\SyliusQuickOrderPlugin\Adder\VariantLookupInterface::class),
             $this->service('sylius.checker.inventory.availability', \Sylius\Component\Inventory\Checker\AvailabilityCheckerInterface::class),
@@ -144,8 +142,16 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
             $processor,
             $this->entityManager(),
             $this->service('event_dispatcher', \Symfony\Contracts\EventDispatcher\EventDispatcherInterface::class),
-            (int) $container->getParameter('sylius.order_item_quantity_modifier.limit'),
+            self::intParameter('sylius.order_item_quantity_modifier.limit'),
         );
+    }
+
+    private static function intParameter(string $name): int
+    {
+        $value = self::getContainer()->getParameter($name);
+        self::assertIsInt($value);
+
+        return $value;
     }
 
     /**

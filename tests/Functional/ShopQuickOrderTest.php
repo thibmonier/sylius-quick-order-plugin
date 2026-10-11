@@ -6,6 +6,7 @@ namespace Tests\Tmonier\SyliusQuickOrderPlugin\Functional;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\DomCrawler\Field\FileFormField;
 use Tests\Tmonier\SyliusQuickOrderPlugin\Cart\FakeQuoteCartChecker;
 
 final class ShopQuickOrderTest extends WebTestCase
@@ -76,7 +77,9 @@ final class ShopQuickOrderTest extends WebTestCase
         try {
             $crawler = $this->client->request('GET', $this->url('/quick-order'));
             $form = $crawler->filter('[data-test-tmonier-quick-order-preview]')->form();
-            $form['file']->upload($path);
+            $field = $form['file'];
+            self::assertInstanceOf(FileFormField::class, $field);
+            $field->upload($path);
             $crawler = $this->client->submit($form);
         } finally {
             unlink($path);

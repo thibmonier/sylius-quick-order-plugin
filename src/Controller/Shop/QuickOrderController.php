@@ -209,8 +209,10 @@ final class QuickOrderController extends AbstractController
         }
 
         try {
-            /** @var array{lines: list<array{c: string, r: string, q: int|null, s: string, l: list<int>, p: string|null, v: string|null, a: int, av: int|null}>, applied: bool, refusal: string|null, mode: string} $data */
-            return BulkAddResult::fromArray($data);
+            /** @var array{lines: list<array{c: string, r: string, q: int|null, s: string, l: list<int>, p: string|null, v: string|null, a: int, av: int|null}>, applied: bool, refusal: string|null, mode: string} $stored written by storeResult(); anything else throws */
+            $stored = $data;
+
+            return BulkAddResult::fromArray($stored);
         } catch (\Throwable) {
             return null;
         }

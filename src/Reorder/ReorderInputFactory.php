@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Reorder;
 
 use Sylius\Component\Core\Model\OrderInterface;
-use Sylius\Component\Core\Model\OrderItemInterface;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 use Tmonier\SyliusQuickOrderPlugin\Input\LineCollector;
 use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
@@ -25,7 +24,6 @@ final class ReorderInputFactory
         $collector = new LineCollector($this->maxLines);
         $lineNumber = 0;
         foreach ($order->getItems() as $item) {
-            /** @var OrderItemInterface $item */
             ++$lineNumber;
             $code = $item->getVariant()?->getCode();
             if (null === $code) {

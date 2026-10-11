@@ -212,7 +212,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
             $available,
         );
 
-        if (null === $product || !$product->isEnabled() || !$variant->isEnabled()) {
+        if (!$product instanceof ProductInterface || !$product->isEnabled() || !$variant->isEnabled()) {
             return $result(LineStatus::Disabled);
         }
         if (!self::isSoldIn($product, $channel)) {
@@ -289,7 +289,6 @@ final class BulkCartAdder implements BulkCartAdderInterface
     {
         foreach ($cart->getItems() as $existing) {
             if ($item->equals($existing)) {
-                /** @var OrderItemInterface $existing */
                 return $existing;
             }
         }
@@ -301,7 +300,6 @@ final class BulkCartAdder implements BulkCartAdderInterface
     {
         $quantity = 0;
         foreach ($cart->getItems() as $item) {
-            /** @var OrderItemInterface $item */
             if ($item->getVariant()?->getCode() === $variant->getCode()) {
                 $quantity += $item->getQuantity();
             }
@@ -315,7 +313,6 @@ final class BulkCartAdder implements BulkCartAdderInterface
     {
         $quantities = [];
         foreach ($cart->getItems() as $item) {
-            /** @var OrderItemInterface $item */
             $variant = $item->getVariant();
             if (null !== $variant) {
                 $key = (string) $variant->getCode();

@@ -7,6 +7,7 @@ namespace Tmonier\SyliusQuickOrderPlugin\Api;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use Sylius\Bundle\ApiBundle\Context\UserContextInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
@@ -34,7 +35,6 @@ final class BulkAddItemsProcessor implements ProcessorInterface
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): BulkAddItemsResult
     {
-        \assert($data instanceof BulkAddItemsToCart);
         $tokenValue = $uriVariables['tokenValue'] ?? null;
 
         $cart = \is_string($tokenValue) ? $this->orderRepository->findCartByTokenValue($tokenValue) : null;
@@ -78,7 +78,7 @@ final class BulkAddItemsProcessor implements ProcessorInterface
         }
 
         $cartCustomer = $cart->getCustomer();
-        if (null === $cartCustomer || null === $cartCustomer->getUser()) {
+        if (!$cartCustomer instanceof CustomerInterface || null === $cartCustomer->getUser()) {
             return true;
         }
 

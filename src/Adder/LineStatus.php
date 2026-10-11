@@ -8,13 +8,18 @@ enum LineStatus: string
 {
     /** Preview: the line can be added. */
     case Valid = 'valid';
+
     case Added = 'added';
+
     /** Added, but the cart processing kept a smaller quantity. */
     case Adjusted = 'adjusted';
+
     /** Valid, but not added: another line failed in all-or-nothing mode, or the cart is locked. */
     case Skipped = 'skipped';
+
     /** Added, then removed by the cart processing. */
     case Removed = 'removed';
+
     case InvalidLine = 'invalid_line';
     case InvalidQuantity = 'invalid_quantity';
     case UnknownCode = 'unknown_code';

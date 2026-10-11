@@ -19,9 +19,9 @@ final class QuantityConstraint
 
     public function isSatisfiedBy(int $quantity): bool
     {
-        return $quantity >= $this->minimum
-            && 0 === $quantity % $this->multipleOf
-            && (null === $this->maximum || $quantity <= $this->maximum);
+        return $quantity >= $this->minimum &&
+            0 === $quantity % $this->multipleOf &&
+            (null === $this->maximum || $quantity <= $this->maximum);
     }
 
     /** The smallest valid quantity greater than or equal to $quantity, null when there is none. */

@@ -40,8 +40,8 @@ final class PasteParser
 
     public static function isHeader(string $code, ?string $quantity): bool
     {
-        return 1 === preg_match(self::HEADER_CODES, trim($code, " \t\"\u{FEFF}"))
-            && (null === $quantity || 1 !== preg_match('/^\s*\d/', $quantity));
+        return 1 === preg_match(self::HEADER_CODES, trim($code, " \t\"\u{FEFF}")) &&
+            (null === $quantity || 1 !== preg_match('/^\s*\d/', $quantity));
     }
 
     /** @return array{0: string, 1: string|null} */

@@ -14,8 +14,8 @@ final class PasteParserTest extends TestCase
     /** @return iterable<string, array{string, string, int}> */
     public static function separators(): iterable
     {
-        yield 'semicolon' => ["ABC-1;3", 'ABC-1', 3];
-        yield 'comma' => ["ABC-1,3", 'ABC-1', 3];
+        yield 'semicolon' => ['ABC-1;3', 'ABC-1', 3];
+        yield 'comma' => ['ABC-1,3', 'ABC-1', 3];
         yield 'tab (spreadsheet copy)' => ["ABC-1\t3", 'ABC-1', 3];
         yield 'tab with extra columns' => ["ABC-1\t3\tBlue T-shirt", 'ABC-1', 3];
         yield 'space before the quantity' => ['ABC-1 3', 'ABC-1', 3];

@@ -34,12 +34,13 @@ final class ApiBulkAddTest extends WebTestCase
         self::assertTrue($data['applied']);
         self::assertSame('partial', $data['mode']);
         self::assertSame(1, $data['addedCount']);
-        self::assertIsArray($data['lines']);
+        /** @var list<array{status: string, lineNumbers: list<int>, addedQuantity: int, available: int|null}> $lines */
+        $lines = $data['lines'];
         self::assertSame(
             [['added', [1, 4], 3], ['insufficient_stock', [2], 0], ['unknown_code', [3], 0], ['invalid_line', [5], 0]],
-            array_map(static fn (array $line): array => [$line['status'], $line['lineNumbers'], $line['addedQuantity']], $data['lines']),
+            array_map(static fn (array $line): array => [$line['status'], $line['lineNumbers'], $line['addedQuantity']], $lines),
         );
-        self::assertSame(3, $data['lines'][1]['available']);
+        self::assertSame(3, $lines[1]['available']);
 
         $this->entityManager()->clear();
         $reloaded = $this->entityManager()->find(OrderInterface::class, $cart->getId());
@@ -130,8 +131,14 @@ final class ApiBulkAddTest extends WebTestCase
             content: json_encode($body, \JSON_THROW_ON_ERROR),
         );
         $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+        if (!\is_array($data)) {
+            return [];
+        }
 
-        return \is_array($data) ? $data : [];
+        /** @var array<string, mixed> $typed */
+        $typed = $data;
+
+        return $typed;
     }
 
     /** @return array<string, string> */

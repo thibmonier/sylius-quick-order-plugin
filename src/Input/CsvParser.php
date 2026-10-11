@@ -56,7 +56,6 @@ final class CsvParser
         $lineNumber = 0;
         while (false !== ($row = fgetcsv($handle, null, $separator, '"', ''))) {
             ++$lineNumber;
-            /** @var list<string|null> $row */
             if ([null] === $row || '' === trim(implode('', array_map('strval', $row)))) {
                 continue;
             }
