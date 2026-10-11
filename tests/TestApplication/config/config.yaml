@@ -36,3 +36,7 @@ services:
     # register the quick order bridge for it.
     tmonier_quote_request.quote_cart_checker:
         class: Tests\Tmonier\SyliusQuickOrderPlugin\Cart\FakeQuoteCartChecker
+
+    Tests\Tmonier\SyliusQuickOrderPlugin\Cart\ResetNewCartOnRequestListener:
+        arguments: ['@sylius.context.cart.new_shop_based']
+        tags: [{ name: kernel.event_listener, event: kernel.request, priority: 4096 }]

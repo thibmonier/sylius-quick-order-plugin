@@ -5,7 +5,8 @@ sylius_twig_hooks:
                 template: '@TmonierSyliusQuickOrderPlugin/shop/account/order/reorder_button.html.twig'
                 priority: -100
 
-        'sylius_shop.cart.index.content.form.sections':
+        # Outside the cart live component: shown for empty carts too.
+        'sylius_shop.cart.index.content':
             tmonier_quick_order_link:
                 template: '@TmonierSyliusQuickOrderPlugin/shop/cart/quick_order_link.html.twig'
                 priority: 50

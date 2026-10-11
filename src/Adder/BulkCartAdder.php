@@ -8,6 +8,7 @@ use Doctrine\Persistence\ObjectManager;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\OrderItemInterface;
+use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Inventory\Checker\AvailabilityCheckerInterface;
 use Sylius\Component\Order\Modifier\OrderItemQuantityModifierInterface;
@@ -109,7 +110,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
 
                 continue;
             }
-            $key = spl_object_id($variants[$line->code]);
+            $key = (string) $variants[$line->code]->getCode();
             $previous = $before[$key] ?? 0;
             $actual = $after[$key] ?? 0;
             if ($actual >= $previous + $line->quantity) {
@@ -179,7 +180,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
                 continue;
             }
 
-            $key = spl_object_id($variant);
+            $key = (string) $variant->getCode();
             $existing = self::quantityInCart($cart, $variant) + ($pending[$key] ?? 0);
             $line = $this->checkLine($line->code, $line->quantity, $line->lineNumbers, $variant, $channel, $existing);
             if (LineStatus::Valid === $line->status && null !== $line->quantity) {
@@ -214,7 +215,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         if (null === $product || !$product->isEnabled() || !$variant->isEnabled()) {
             return $result(LineStatus::Disabled);
         }
-        if (!$product->hasChannel($channel)) {
+        if (!self::isSoldIn($product, $channel)) {
             return $result(LineStatus::NotInChannel);
         }
         if (null === $variant->getChannelPricingForChannel($channel)?->getPrice()) {
@@ -272,6 +273,18 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return array_map(static fn (LineResult $line): LineResult => LineStatus::Valid === $line->status ? $line->withStatus(LineStatus::Skipped) : $line, $lines);
     }
 
+    /** By code: the channel of the cart may be another instance than the product's (cleared entity manager). */
+    private static function isSoldIn(ProductInterface $product, ChannelInterface $channel): bool
+    {
+        foreach ($product->getChannels() as $productChannel) {
+            if ($productChannel->getCode() === $channel->getCode()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static function findEqualItem(OrderInterface $cart, OrderItemInterface $item): ?OrderItemInterface
     {
         foreach ($cart->getItems() as $existing) {
@@ -289,7 +302,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         $quantity = 0;
         foreach ($cart->getItems() as $item) {
             /** @var OrderItemInterface $item */
-            if ($item->getVariant() === $variant) {
+            if ($item->getVariant()?->getCode() === $variant->getCode()) {
                 $quantity += $item->getQuantity();
             }
         }
@@ -297,7 +310,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return $quantity;
     }
 
-    /** @return array<int, int> quantities indexed by variant object id */
+    /** @return array<string, int> quantities indexed by variant code */
     private static function quantitiesByVariant(OrderInterface $cart): array
     {
         $quantities = [];
@@ -305,7 +318,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
             /** @var OrderItemInterface $item */
             $variant = $item->getVariant();
             if (null !== $variant) {
-                $key = spl_object_id($variant);
+                $key = (string) $variant->getCode();
                 $quantities[$key] = ($quantities[$key] ?? 0) + $item->getQuantity();
             }
         }
