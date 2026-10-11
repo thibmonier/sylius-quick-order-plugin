@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'Your session has expired, please try again.'
+    lines_added: '%count% line(s) added to your cart.'
+    refusal:
+        cart_locked: 'Your cart cannot be changed right now (for example, it holds an accepted quote).'
+        too_many_lines: 'Too many lines: split your order into smaller batches.'
+        file_rejected: 'The file could not be read: upload a CSV file within the size limit.'
+        empty: 'Paste at least one line or choose a CSV file.'

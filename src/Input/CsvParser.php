@@ -11,7 +11,7 @@ namespace Tmonier\SyliusQuickOrderPlugin\Input;
  */
 final class CsvParser
 {
-    private const CODE_HEADERS = ['sku', 'code', 'product_code', 'productcode', 'variant_code', 'variantcode', 'product code', 'variant code', 'reference', 'ref'];
+    private const CODE_HEADERS = ['sku', 'code', 'product_code', 'productcode', 'variant_code', 'variantcode', 'product code', 'variant code', 'reference', 'référence', 'ref', 'artikelnummer', 'artikel', 'código', 'codigo', 'codice', 'kod'];
 
     private const QUANTITY_HEADERS = ['qty', 'quantity', 'quantité', 'quantite', 'menge', 'cantidad', 'quantità', 'aantal', 'ilość', 'ilosc'];
 

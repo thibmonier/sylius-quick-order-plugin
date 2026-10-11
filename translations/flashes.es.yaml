@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'Su sesión ha caducado, inténtelo de nuevo.'
+    lines_added: '%count% línea(s) añadida(s) al carrito.'
+    refusal:
+        cart_locked: 'Su carrito no puede modificarse en este momento (por ejemplo, contiene un presupuesto aceptado).'
+        too_many_lines: 'Demasiadas líneas: divida su pedido en lotes más pequeños.'
+        file_rejected: 'No se ha podido leer el archivo: suba un archivo CSV dentro del límite de tamaño.'
+        empty: 'Pegue al menos una línea o elija un archivo CSV.'

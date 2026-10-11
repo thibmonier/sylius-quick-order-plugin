@@ -30,3 +30,9 @@ sylius_fixtures:
                         channel: 'FASHION_WEB'
                         customer: 'quickorder@example.com'
                         fulfilled: true
+
+services:
+    # Same id and method as tmonier/sylius-quote-request-plugin: QuoteRequestBridgePass must
+    # register the quick order bridge for it.
+    tmonier_quote_request.quote_cart_checker:
+        class: Tests\Tmonier\SyliusQuickOrderPlugin\Cart\FakeQuoteCartChecker

@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'Votre session a expiré, veuillez réessayer.'
+    lines_added: '%count% ligne(s) ajoutée(s) au panier.'
+    refusal:
+        cart_locked: 'Votre panier ne peut pas être modifié pour le moment (par exemple, il contient un devis accepté).'
+        too_many_lines: 'Trop de lignes : découpez votre commande en lots plus petits.'
+        file_rejected: 'Le fichier n''a pas pu être lu : envoyez un fichier CSV dans la limite de taille.'
+        empty: 'Collez au moins une ligne ou choisissez un fichier CSV.'

@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'Je sessie is verlopen, probeer het opnieuw.'
+    lines_added: '%count% regel(s) aan je winkelwagen toegevoegd.'
+    refusal:
+        cart_locked: 'Je winkelwagen kan nu niet worden gewijzigd (er staat bijvoorbeeld een geaccepteerde offerte in).'
+        too_many_lines: 'Te veel regels: splits je bestelling op in kleinere delen.'
+        file_rejected: 'Het bestand kon niet worden gelezen: upload een CSV-bestand binnen de maximale grootte.'
+        empty: 'Plak minstens één regel of kies een CSV-bestand.'

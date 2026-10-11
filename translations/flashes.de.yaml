@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'Ihre Sitzung ist abgelaufen, bitte versuchen Sie es erneut.'
+    lines_added: '%count% Zeile(n) in den Warenkorb gelegt.'
+    refusal:
+        cart_locked: 'Ihr Warenkorb kann derzeit nicht geändert werden (er enthält z. B. ein angenommenes Angebot).'
+        too_many_lines: 'Zu viele Zeilen: Teilen Sie Ihre Bestellung in kleinere Teile auf.'
+        file_rejected: 'Die Datei konnte nicht gelesen werden: Laden Sie eine CSV-Datei innerhalb der Größenbegrenzung hoch.'
+        empty: 'Fügen Sie mindestens eine Zeile ein oder wählen Sie eine CSV-Datei.'

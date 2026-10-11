@@ -1,0 +1,8 @@
+tmonier_quick_order:
+    invalid_csrf_token: 'La sessione è scaduta, riprova.'
+    lines_added: '%count% riga/e aggiunta/e al carrello.'
+    refusal:
+        cart_locked: 'Il carrello non può essere modificato al momento (ad esempio, contiene un preventivo accettato).'
+        too_many_lines: 'Troppe righe: dividi l''ordine in lotti più piccoli.'
+        file_rejected: 'Impossibile leggere il file: carica un file CSV entro il limite di dimensione.'
+        empty: 'Incolla almeno una riga o scegli un file CSV.'
