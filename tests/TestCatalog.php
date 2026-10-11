@@ -6,6 +6,7 @@ namespace Tests\Tmonier\SyliusQuickOrderPlugin;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Container\ContainerInterface;
+use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\ChannelPricingInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
@@ -196,6 +197,18 @@ final class TestCatalog
             $item->setVariantName($variant->getName());
             $quantityModifier->modify($item, $quantity);
             $order->addItem($item);
+        }
+        /** @var FactoryInterface<AddressInterface> $addressFactory */
+        $addressFactory = $this->container->get('sylius.factory.address');
+        foreach (['setShippingAddress', 'setBillingAddress'] as $setter) {
+            $address = $addressFactory->createNew();
+            $address->setFirstName('Quick');
+            $address->setLastName('Order');
+            $address->setStreet('1 Bulk Street');
+            $address->setCity('Lyon');
+            $address->setPostcode('69001');
+            $address->setCountryCode('FR');
+            $order->{$setter}($address);
         }
         $order->setNumber('QO' . $this->suffix . random_int(100, 999));
         $order->setState(OrderInterface::STATE_NEW);

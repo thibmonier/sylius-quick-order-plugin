@@ -23,18 +23,26 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
         $loader->load('services.php');
-        if ($container->hasExtension('api_platform')) {
+        if (self::hasApiPlatform($container)) {
             $loader->load('services_api.php');
         }
     }
 
     public function prepend(ContainerBuilder $container): void
     {
-        if ($container->hasExtension('api_platform')) {
+        if (self::hasApiPlatform($container)) {
             $container->prependExtensionConfig('api_platform', [
                 'mapping' => ['paths' => [\dirname(__DIR__) . '/Api/Resource']],
             ]);
         }
+    }
+
+    /** Extensions are not registered in the container given to load(): check the bundles. */
+    private static function hasApiPlatform(ContainerBuilder $container): bool
+    {
+        $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : [];
+
+        return \is_array($bundles) && isset($bundles['ApiPlatformBundle']) && interface_exists(\ApiPlatform\State\ProcessorInterface::class);
     }
 
     public function getAlias(): string
