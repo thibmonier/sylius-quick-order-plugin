@@ -1,0 +1,32 @@
+imports:
+    - { resource: "@TmonierSyliusQuickOrderPlugin/config/config.yaml" }
+
+twig:
+    paths:
+        '%kernel.project_dir%/../../../tests/TestApplication/templates': ~
+
+# Demo data (dev and test databases): the quick order T-shirt (12 variants, QO-TEE-<SIZE>-<COLOUR>),
+# a B2B buyer quickorder@example.com / sylius and two past orders of that buyer to reorder.
+sylius_fixtures:
+    suites:
+        default:
+            fixtures:
+                tmonier_quick_order_demo_catalog:
+                    priority: -100
+                tmonier_quick_order_demo_buyer:
+                    name: shop_user
+                    priority: -110
+                    options:
+                        custom:
+                            -   email: 'quickorder@example.com'
+                                first_name: 'Quinn'
+                                last_name: 'Buyer'
+                                password: 'sylius'
+                tmonier_quick_order_demo_orders:
+                    name: order
+                    priority: -120
+                    options:
+                        amount: 2
+                        channel: 'FASHION_WEB'
+                        customer: 'quickorder@example.com'
+                        fulfilled: true

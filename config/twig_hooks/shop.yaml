@@ -1,0 +1,11 @@
+sylius_twig_hooks:
+    hooks:
+        'sylius_shop.account.order.show.content.main.header.buttons':
+            tmonier_quick_order_reorder:
+                template: '@TmonierSyliusQuickOrderPlugin/shop/account/order/reorder_button.html.twig'
+                priority: -100
+
+        'sylius_shop.cart.index.content.form.sections':
+            tmonier_quick_order_link:
+                template: '@TmonierSyliusQuickOrderPlugin/shop/cart/quick_order_link.html.twig'
+                priority: 50

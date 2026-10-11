@@ -1,0 +1,50 @@
+{% set status_colors = {
+    'valid': 'success', 'added': 'success', 'adjusted': 'warning', 'skipped': 'secondary',
+} %}
+<div class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th style="width: 5rem">{{ 'tmonier_quick_order.ui.line'|trans }}</th>
+                <th>{{ 'tmonier_quick_order.ui.code'|trans }}</th>
+                <th>{{ 'sylius.ui.product'|trans }}</th>
+                <th class="text-end">{{ 'sylius.ui.quantity'|trans }}</th>
+                <th>{{ 'sylius.ui.status'|trans }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in lines_to_show %}
+                {% set color = status_colors[line.status.value]|default('danger') %}
+                <tr {{ sylius_test_html_attribute('tmonier-quick-order-line', line.code) }} data-status="{{ line.status.value }}">
+                    <td class="text-body-secondary">{{ line.lineNumbers|join(', ') }}</td>
+                    <td class="font-monospace text-break">{{ line.code }}</td>
+                    <td>
+                        {% if line.productName %}
+                            <div class="fw-semibold">{{ line.productName }}</div>
+                            {% if line.variantName and line.variantName != line.productName %}<div class="small text-body-secondary">{{ line.variantName }}</div>{% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        {% if line.rounded %}
+                            <s class="text-body-secondary">{{ line.requestedQuantity }}</s> {{ line.quantity }}
+                        {% else %}
+                            {{ line.requestedQuantity }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge text-bg-{{ color }}">{{ ('tmonier_quick_order.status_label.' ~ line.status.value)|trans }}</span>
+                        {% if line.status.value not in ['valid', 'added'] or line.rounded %}
+                            <div class="small text-body-secondary mt-1">
+                                {% if line.rounded and line.status.value in ['valid', 'added'] %}
+                                    {{ 'tmonier_quick_order.ui.rounded'|trans({'%quantity%': line.quantity}) }}
+                                {% else %}
+                                    {{ ('tmonier_quick_order.status.' ~ line.status.value)|trans({'%quantity%': line.quantity, '%available%': line.available|default(0), '%added%': line.addedQuantity}) }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

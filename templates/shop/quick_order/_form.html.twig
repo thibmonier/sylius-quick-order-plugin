@@ -1,0 +1,44 @@
+<form method="post" action="{{ path('tmonier_quick_order_shop_preview') }}" enctype="multipart/form-data" class="mb-5" novalidate {{ sylius_test_html_attribute('tmonier-quick-order-form') }}>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token(csrf_id) }}">
+    <div class="row g-4">
+        <div class="col-12 col-lg-8">
+            <div class="card h-100">
+                <div class="card-header fw-bold">{{ 'tmonier_quick_order.ui.paste_lines'|trans }}</div>
+                <div class="card-body">
+                    <label for="tmonier-quick-order-lines" class="form-label">{{ 'tmonier_quick_order.ui.paste_lines_help'|trans }}</label>
+                    <textarea id="tmonier-quick-order-lines" name="lines" rows="10" class="form-control font-monospace" spellcheck="false" placeholder="SKU-001;2&#10;SKU-002,10&#10;SKU-003	5" {{ sylius_test_html_attribute('tmonier-quick-order-lines') }}>{{ lines }}</textarea>
+
+                    <div class="mt-4">
+                        <label for="tmonier-quick-order-file" class="form-label">{{ 'tmonier_quick_order.ui.or_upload_csv'|trans }}</label>
+                        <input type="file" id="tmonier-quick-order-file" name="file" accept=".csv,.txt,text/csv,text/plain" class="form-control">
+                        <div class="form-text">
+                            {{ 'tmonier_quick_order.ui.csv_help'|trans({'%size%': (max_file_size / 1048576)|round(1)}) }}
+                            <a href="{{ path('tmonier_quick_order_shop_template') }}" {{ sylius_test_html_attribute('tmonier-quick-order-template') }}>{{ 'tmonier_quick_order.ui.download_template'|trans }}</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card h-100">
+                <div class="card-header fw-bold">{{ 'tmonier_quick_order.ui.options'|trans }}</div>
+                <div class="card-body">
+                    {% for option in ['partial', 'all_or_nothing'] %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="mode" id="tmonier-quick-order-mode-{{ option }}" value="{{ option }}" {{ mode == option ? 'checked' }}>
+                            <label class="form-check-label" for="tmonier-quick-order-mode-{{ option }}">
+                                <span class="fw-semibold">{{ ('tmonier_quick_order.ui.mode.' ~ option)|trans }}</span>
+                                <span class="d-block small text-body-secondary">{{ ('tmonier_quick_order.ui.mode.' ~ option ~ '_help')|trans }}</span>
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary w-100" {{ sylius_test_html_attribute('tmonier-quick-order-preview') }}>
+                        {{ 'tmonier_quick_order.ui.preview'|trans }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

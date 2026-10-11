@@ -1,0 +1,28 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+{% from '@SyliusShop/shared/breadcrumbs.html.twig' import breadcrumbs %}
+
+{% block title %}{{ 'tmonier_quick_order.ui.quick_order'|trans }} | {{ parent() }}{% endblock %}
+
+{% block content %}
+    <div class="container mb-auto" {{ sylius_test_html_attribute('tmonier-quick-order') }}>
+        <div class="my-4">
+            {{ breadcrumbs([
+                { label: 'sylius.ui.home'|trans, path: path('sylius_shop_homepage') },
+                { label: 'tmonier_quick_order.ui.quick_order'|trans, active: true },
+            ]) }}
+        </div>
+        {% include '@SyliusShop/shared/flashes.html.twig' %}
+        <h1 class="h2 mb-2">{{ 'tmonier_quick_order.ui.quick_order'|trans }}</h1>
+        <p class="text-body-secondary mb-4">{{ 'tmonier_quick_order.ui.help'|trans({'%max%': max_lines}) }}</p>
+
+        {% if result is not null %}
+            {% include '@TmonierSyliusQuickOrderPlugin/shop/quick_order/_result.html.twig' %}
+        {% endif %}
+
+        {% if preview is not null %}
+            {% include '@TmonierSyliusQuickOrderPlugin/shop/quick_order/_preview.html.twig' %}
+        {% endif %}
+
+        {% include '@TmonierSyliusQuickOrderPlugin/shop/quick_order/_form.html.twig' %}
+    </div>
+{% endblock %}

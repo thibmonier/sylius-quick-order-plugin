@@ -1,0 +1,41 @@
+tmonier_quick_order_shop_index:
+    path: /quick-order
+    methods: [GET]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::indexAction
+
+tmonier_quick_order_shop_preview:
+    path: /quick-order/preview
+    methods: [POST]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::previewAction
+
+tmonier_quick_order_shop_add:
+    path: /quick-order/add
+    methods: [POST]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::addAction
+
+tmonier_quick_order_shop_result:
+    path: /quick-order/result
+    methods: [GET]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::resultAction
+
+tmonier_quick_order_shop_template:
+    path: /quick-order/template.csv
+    methods: [GET]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::templateAction
+
+tmonier_quick_order_shop_report:
+    path: /quick-order/report.csv
+    methods: [GET]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::reportAction
+
+tmonier_quick_order_shop_reorder:
+    path: /account/orders/{number}/reorder
+    methods: [POST]
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::reorderAction

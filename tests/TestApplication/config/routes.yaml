@@ -1,0 +1,2 @@
+tmonier_sylius_quick_order:
+    resource: "@TmonierSyliusQuickOrderPlugin/config/routes.yaml"

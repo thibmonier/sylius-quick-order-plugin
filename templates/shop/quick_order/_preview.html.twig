@@ -1,0 +1,29 @@
+{% set addable = preview.countAddable %}
+<div class="card mb-4" {{ sylius_test_html_attribute('tmonier-quick-order-preview-result') }}>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-bold">{{ 'tmonier_quick_order.ui.preview_title'|trans }}</span>
+        <span class="small text-body-secondary">
+            {{ 'tmonier_quick_order.ui.preview_summary'|trans({'%valid%': addable, '%errors%': preview.errors|length}) }}
+        </span>
+    </div>
+    {% include '@TmonierSyliusQuickOrderPlugin/shop/quick_order/_lines.html.twig' with {lines_to_show: preview.lines} %}
+    <div class="card-footer d-flex flex-wrap gap-2 align-items-center">
+        {% if addable > 0 and not (mode == 'all_or_nothing' and preview.errors is not empty) %}
+            <form method="post" action="{{ path('tmonier_quick_order_shop_add') }}" class="m-0">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token(csrf_id) }}">
+                <input type="hidden" name="payload" value="{{ payload }}">
+                <input type="hidden" name="mode" value="{{ mode }}">
+                <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-quick-order-add') }}>
+                    {{ 'tmonier_quick_order.ui.add_lines'|trans({'%count%': addable}) }}
+                </button>
+            </form>
+        {% elseif addable > 0 %}
+            <span class="text-danger small">{{ 'tmonier_quick_order.ui.all_or_nothing_blocked'|trans }}</span>
+        {% endif %}
+        {% if preview.errors is not empty %}
+            <a class="btn btn-outline-gray" href="{{ path('tmonier_quick_order_shop_report') }}" {{ sylius_test_html_attribute('tmonier-quick-order-report') }}>
+                {{ 'tmonier_quick_order.ui.download_report'|trans }}
+            </a>
+        {% endif %}
+    </div>
+</div>

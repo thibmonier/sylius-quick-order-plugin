@@ -1,0 +1,9 @@
+{% set order = hookable_metadata.context.order %}
+
+<form method="post" action="{{ path('tmonier_quick_order_shop_reorder', {'number': order.number}) }}" class="m-0">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_quick_order') }}">
+    <button type="submit" class="btn btn-outline-gray" {{ sylius_test_html_attribute('tmonier-quick-order-reorder') }}>
+        {{ ux_icon('tabler:shopping-cart-plus', {'class': 'icon'}) }}
+        {{ 'tmonier_quick_order.ui.reorder'|trans }}
+    </button>
+</form>
