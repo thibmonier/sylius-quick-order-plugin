@@ -7,6 +7,7 @@ namespace Tmonier\SyliusQuickOrderPlugin;
 use Sylius\Bundle\CoreBundle\Application\SyliusPluginTrait;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Tmonier\SyliusQuickOrderPlugin\DependencyInjection\Compiler\CatalogPriceCalculatorPass;
 use Tmonier\SyliusQuickOrderPlugin\DependencyInjection\Compiler\QuoteRequestBridgePass;
 
 final class TmonierSyliusQuickOrderPlugin extends Bundle
@@ -18,6 +19,7 @@ final class TmonierSyliusQuickOrderPlugin extends Bundle
         parent::build($container);
 
         $container->addCompilerPass(new QuoteRequestBridgePass());
+        $container->addCompilerPass(new CatalogPriceCalculatorPass());
     }
 
     public function getPath(): string

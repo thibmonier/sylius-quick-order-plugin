@@ -1,0 +1,22 @@
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-list') }}>
+        <thead>
+            <tr>
+                <th scope="col">{{ matrix.rowLabel ?? 'sylius.ui.variant'|trans }}</th>
+                <th scope="col" class="text-end" style="width: 9rem">{{ 'sylius.ui.quantity'|trans }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cell in matrix.listedCells %}
+                <tr>
+                    <th scope="row" class="fw-normal">
+                        <label for="tmonier-quick-order-matrix-{{ cell.variantId }}">{{ cell.label }}</label>
+                    </th>
+                    <td class="text-end">
+                        {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_input.html.twig' with {cell, label: cell.label} %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

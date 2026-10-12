@@ -10,3 +10,15 @@ sylius_twig_hooks:
             tmonier_quick_order_link:
                 template: '@TmonierSyliusQuickOrderPlugin/shop/cart/quick_order_link.html.twig'
                 priority: 50
+
+        # Order matrix: a sibling of the core add to cart form (its form must not nest in the
+        # core one). For matrix products the core form renders nothing (wrapper template).
+        'sylius_shop.product.show.content.info.summary':
+            add_to_cart:
+                props:
+                    template: '@TmonierSyliusQuickOrderPlugin/shop/product/add_to_cart.html.twig'
+            tmonier_quick_order_matrix:
+                component: 'tmonier_quick_order:product:matrix'
+                props:
+                    product: '@=_context.product'
+                priority: 90

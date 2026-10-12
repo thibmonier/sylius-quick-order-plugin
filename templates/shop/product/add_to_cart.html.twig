@@ -1,0 +1,6 @@
+{# Wraps the core add to cart form: products with the order matrix do not show it (no nested forms). #}
+{% if tmonier_quick_order_is_matrix(product) %}
+    <div {{ attributes }} hidden></div>
+{% else %}
+    {{ include('@SyliusShop/product/show/content/info/summary/add_to_cart.html.twig') }}
+{% endif %}

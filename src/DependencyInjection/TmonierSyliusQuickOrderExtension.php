@@ -14,11 +14,14 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{max_lines: int, max_total_quantity: int, expose_available_stock: bool, max_file_size: int, default_mode: string, allow_guests: bool, quantity_rounding: string} $config */
+        /** @var array{max_lines: int, max_total_quantity: int, expose_available_stock: bool, max_file_size: int, default_mode: string, allow_guests: bool, quantity_rounding: string, matrix: array{enabled: bool, auto: bool, max_variants: int, max_grid_cells: int, products: list<string>, excluded_products: list<string>, attribute: string|null}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         foreach ($config as $key => $value) {
             $container->setParameter('tmonier_quick_order.' . $key, $value);
+        }
+        foreach ($config['matrix'] as $key => $value) {
+            $container->setParameter('tmonier_quick_order.matrix.' . $key, $value);
         }
 
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));

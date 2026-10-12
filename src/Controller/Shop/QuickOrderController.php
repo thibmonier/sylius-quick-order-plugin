@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Controller\Shop;
 
 use Sylius\Component\Channel\Context\ChannelContextInterface;
+use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
+use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Sylius\Component\Customer\Context\CustomerContextInterface;
 use Sylius\Component\Order\Context\CartContextInterface;
+use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\HeaderUtils;
@@ -22,6 +25,8 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
 use Tmonier\SyliusQuickOrderPlugin\Input\CsvParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\PasteParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationCheckerInterface;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Reorder\ReorderInputFactory;
 use Tmonier\SyliusQuickOrderPlugin\Report\CsvWriter;
 
@@ -41,7 +46,10 @@ final class QuickOrderController extends AbstractController
     /** Previews kept per session (one per browser tab, roughly), oldest dropped first. */
     private const MAX_PREVIEWS = 5;
 
-    /** @param OrderRepositoryInterface<OrderInterface> $orderRepository */
+    /**
+     * @param OrderRepositoryInterface<OrderInterface> $orderRepository
+     * @param RepositoryInterface<ProductInterface>|null $productRepository
+     */
     public function __construct(
         private readonly CartContextInterface $cartContext,
         private readonly BulkCartAdderInterface $bulkCartAdder,
@@ -57,6 +65,9 @@ final class QuickOrderController extends AbstractController
         private readonly int $maxLines,
         private readonly int $maxFileSize,
         private readonly int $maxTotalQuantity = 20000,
+        private readonly ?RepositoryInterface $productRepository = null,
+        private readonly ?MatrixActivationCheckerInterface $matrixActivationChecker = null,
+        private readonly ?MatrixOrderHandlerInterface $matrixOrderHandler = null,
     ) {
     }
 
@@ -141,6 +152,26 @@ final class QuickOrderController extends AbstractController
         }
 
         return $this->addAndRedirect($request, $this->reorderInputFactory->create($order), BulkAddMode::Partial);
+    }
+
+    /** The order matrix without JavaScript: a plain form post of the quantities. */
+    public function matrixAddAction(Request $request, int $productId): Response
+    {
+        $product = $this->productRepository?->find($productId);
+        $channel = $this->channelContext->getChannel();
+        if (!$product instanceof ProductInterface || null === $this->matrixOrderHandler || !$product->isEnabled()
+            || !$channel instanceof ChannelInterface || !$product->hasChannel($channel)
+            || true !== $this->matrixActivationChecker?->isMatrixProduct($product)) {
+            throw new NotFoundHttpException('Product not found.');
+        }
+        if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
+            return $this->redirectWithError('tmonier_quick_order.invalid_csrf_token');
+        }
+
+        $quantities = $request->request->all('quantities');
+        $mode = $request->request->getBoolean('all_or_nothing') ? BulkAddMode::AllOrNothing : BulkAddMode::Partial;
+
+        return $this->addAndRedirect($request, $this->matrixOrderHandler->input($product, $quantities), $mode);
     }
 
     public function resultAction(Request $request): Response

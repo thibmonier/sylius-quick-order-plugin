@@ -1,0 +1,31 @@
+{# cell, label (accessible name of the input) #}
+{% import '@SyliusShop/shared/macro/money.html.twig' as money %}
+{% set line = this.lineResult(cell.code) %}
+{% if cell.orderable %}
+    <input type="number"
+           class="form-control form-control-sm text-end{{ line is not null and line.status.error ? ' is-invalid' }}"
+           style="min-width: 5rem"
+           inputmode="numeric"
+           min="0"
+           {% if cell.step > 1 %}step="{{ cell.step }}"{% endif %}
+           name="quantities[{{ cell.key }}]"
+           id="tmonier-quick-order-matrix-{{ cell.variantId }}"
+           value="{{ this.quantity(cell.key) }}"
+           data-model="debounce(400)|quantities.{{ cell.key }}"
+           aria-label="{{ label }}"
+           {% if line is not null and line.status.error %}aria-describedby="tmonier-quick-order-matrix-error-{{ cell.variantId }}"{% endif %}
+           {{ sylius_test_html_attribute('tmonier-quick-order-matrix-input', cell.code) }}
+    >
+    <div class="small text-body-secondary text-nowrap mt-1">
+        {{ money.convertAndFormat(cell.price) }}
+        {% if cell.struckPrice is not null %}<del class="ms-1">{{ money.convertAndFormat(cell.struckPrice) }}</del>{% endif %}
+    </div>
+    {% if cell.step > 1 or cell.minimum > 1 %}
+        <div class="small text-body-secondary">{{ 'tmonier_quick_order.ui.matrix.pack'|trans({'%minimum%': cell.minimum, '%step%': cell.step}) }}</div>
+    {% endif %}
+    {% if line is not null and line.status.error %}
+        <div class="invalid-feedback d-block" id="tmonier-quick-order-matrix-error-{{ cell.variantId }}">{{ line.messageKey|trans({'%quantity%': line.quantity, '%available%': line.available|default(0), '%added%': line.addedQuantity}) }}</div>
+    {% endif %}
+{% else %}
+    <span class="small text-body-tertiary" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-unavailable', cell.code) }}>{{ ('tmonier_quick_order.ui.matrix.cell.' ~ cell.status.value)|trans }}</span>
+{% endif %}

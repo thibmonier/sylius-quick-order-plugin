@@ -39,3 +39,11 @@ tmonier_quick_order_shop_reorder:
     methods: [POST]
     defaults:
         _controller: tmonier_quick_order.controller.shop::reorderAction
+
+tmonier_quick_order_shop_matrix_add:
+    path: /quick-order/products/{productId}/matrix
+    methods: [POST]
+    requirements:
+        productId: '\d+'
+    defaults:
+        _controller: tmonier_quick_order.controller.shop::matrixAddAction

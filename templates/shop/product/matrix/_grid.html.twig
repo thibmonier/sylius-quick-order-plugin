@@ -1,0 +1,30 @@
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-grid') }}>
+        <caption class="visually-hidden">{{ 'tmonier_quick_order.ui.matrix.caption'|trans({'%rows%': matrix.rowLabel, '%columns%': matrix.columnLabel}) }}</caption>
+        <thead>
+            <tr>
+                <td><span class="small text-body-secondary">{{ matrix.rowLabel }} \ {{ matrix.columnLabel }}</span></td>
+                {% for column in matrix.columns %}
+                    <th scope="col" class="text-center">{{ column.label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in matrix.rows %}
+                <tr>
+                    <th scope="row">{{ row.label }}</th>
+                    {% for column in matrix.columns %}
+                        {% set cell = matrix.grid[row.code][column.code]|default(null) %}
+                        <td class="text-center{{ cell is not null and cell.status.value == 'disabled' ? ' bg-body-tertiary' }}">
+                            {% if cell is null or cell.status.value == 'disabled' %}
+                                <span class="text-body-tertiary" aria-label="{{ 'tmonier_quick_order.ui.matrix.cell.disabled'|trans }}">&ndash;</span>
+                            {% else %}
+                                {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_input.html.twig' with {cell, label: row.label ~ ' / ' ~ column.label} %}
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

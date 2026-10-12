@@ -1,0 +1,58 @@
+{# Rendered with \Tmonier\SyliusQuickOrderPlugin\Twig\Component\MatrixOrderComponent #}
+{% set matrix = this.matrix %}
+<div {{ attributes }}>
+    {% if matrix is not null %}
+        {% import '@SyliusShop/shared/macro/money.html.twig' as money %}
+        {% set result = this.result %}
+        <div class="my-4" {{ sylius_test_html_attribute('tmonier-quick-order-matrix') }} data-layout="{{ matrix.layout }}">
+            <h2 class="h5 mb-3" id="tmonier-quick-order-matrix-title-{{ product.id }}">{{ 'tmonier_quick_order.ui.matrix.title'|trans }}</h2>
+
+            {% if result is not null %}
+                {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_result.html.twig' %}
+            {% endif %}
+
+            {% if not matrix.hasOrderableCell %}
+                <div class="alert alert-light" {{ sylius_test_html_attribute('product-out-of-stock') }}>{{ 'sylius.ui.out_of_stock'|trans }}</div>
+            {% else %}
+                <form method="post"
+                      action="{{ path('tmonier_quick_order_shop_matrix_add', {'productId': product.id}) }}"
+                      novalidate
+                      aria-labelledby="tmonier-quick-order-matrix-title-{{ product.id }}"
+                      data-action="live#action:prevent"
+                      data-live-action-param="add"
+                      {{ sylius_test_html_attribute('tmonier-quick-order-matrix-form') }}
+                >
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('tmonier_quick_order') }}">
+
+                    {% if matrix.isGrid() %}
+                        {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_grid.html.twig' %}
+                    {% else %}
+                        {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_list.html.twig' %}
+                    {% endif %}
+
+                    {% set estimate = this.estimate %}
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3">
+                        <div aria-live="polite" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-estimate') }}>
+                            <div class="fw-semibold">
+                                {{ 'tmonier_quick_order.ui.matrix.estimate'|trans({'%units%': estimate.units, '%total%': money.convertAndFormat(estimate.total)}) }}
+                            </div>
+                            <div class="small text-body-secondary">{{ 'tmonier_quick_order.ui.matrix.estimate_help'|trans }}</div>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-3">
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="checkbox" name="all_or_nothing" value="1" id="tmonier-quick-order-matrix-all-{{ product.id }}" data-model="allOrNothing" {{ this.allOrNothing ? 'checked' }}>
+                                <label class="form-check-label small" for="tmonier-quick-order-matrix-all-{{ product.id }}">{{ 'tmonier_quick_order.ui.mode.all_or_nothing'|trans }}</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary px-4" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-add') }}>
+                                {{ ux_icon('tabler:shopping-cart-plus', {'class': 'icon'}) }}
+                                {{ 'tmonier_quick_order.ui.matrix.add'|trans }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            {% endif %}
+
+            {% hook 'tmonier_quick_order.shop.product.matrix' with { product, matrix } %}
+        </div>
+    {% endif %}
+</div>

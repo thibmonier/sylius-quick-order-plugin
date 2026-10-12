@@ -14,7 +14,15 @@ use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\QuickOrderController;
 use Tmonier\SyliusQuickOrderPlugin\Fixture\QuickOrderDemoCatalogFixture;
 use Tmonier\SyliusQuickOrderPlugin\Input\CsvParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\PasteParser;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationChecker;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationCheckerInterface;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixBuilder;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixBuilderInterface;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandler;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Menu\AccountMenuListener;
+use Tmonier\SyliusQuickOrderPlugin\Twig\Component\MatrixOrderComponent;
+use Tmonier\SyliusQuickOrderPlugin\Twig\QuickOrderExtension;
 use Tmonier\SyliusQuickOrderPlugin\Quantity\NullQuantityConstraintProvider;
 use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraintProviderInterface;
 use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityRounding;
@@ -101,11 +109,69 @@ return static function (ContainerConfigurator $container): void {
             param('tmonier_quick_order.max_lines'),
             param('tmonier_quick_order.max_file_size'),
             param('tmonier_quick_order.max_total_quantity'),
+            service('sylius.repository.product'),
+            service('tmonier_quick_order.matrix.activation_checker'),
+            service('tmonier_quick_order.matrix.order_handler'),
         ])
         ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
         ->tag('controller.service_arguments')
         ->tag('container.service_subscriber')
         ->public()
+    ;
+
+    $services
+        ->set('tmonier_quick_order.matrix.activation_checker', MatrixActivationChecker::class)
+        ->args([
+            param('tmonier_quick_order.matrix.enabled'),
+            param('tmonier_quick_order.matrix.auto'),
+            param('tmonier_quick_order.matrix.max_variants'),
+            param('tmonier_quick_order.matrix.products'),
+            param('tmonier_quick_order.matrix.excluded_products'),
+            param('tmonier_quick_order.matrix.attribute'),
+        ])
+    ;
+    $services->alias(MatrixActivationCheckerInterface::class, 'tmonier_quick_order.matrix.activation_checker');
+
+    $services
+        ->set('tmonier_quick_order.matrix.builder', MatrixBuilder::class)
+        ->args([
+            service('tmonier_quick_order.catalog_price_calculator'),
+            service('sylius.checker.inventory.availability'),
+            service('tmonier_quick_order.quantity_constraint_provider'),
+            param('tmonier_quick_order.matrix.max_grid_cells'),
+        ])
+    ;
+    $services->alias(MatrixBuilderInterface::class, 'tmonier_quick_order.matrix.builder');
+
+    $services
+        ->set('tmonier_quick_order.matrix.order_handler', MatrixOrderHandler::class)
+        ->args([service('tmonier_quick_order.bulk_cart_adder')])
+    ;
+    $services->alias(MatrixOrderHandlerInterface::class, 'tmonier_quick_order.matrix.order_handler');
+
+    $services
+        ->set('tmonier_quick_order.twig.component.matrix', MatrixOrderComponent::class)
+        ->args([
+            service('sylius.repository.product'),
+            service('sylius.context.channel'),
+            service('sylius.context.cart'),
+            service('tmonier_quick_order.matrix.activation_checker'),
+            service('tmonier_quick_order.matrix.builder'),
+            service('tmonier_quick_order.matrix.order_handler'),
+            param('tmonier_quick_order.default_mode'),
+            param('tmonier_quick_order.max_total_quantity'),
+        ])
+        ->call('setLiveResponder', [service('ux.live_component.live_responder')])
+        ->tag('sylius.live_component.shop', [
+            'key' => 'tmonier_quick_order:product:matrix',
+            'template' => '@TmonierSyliusQuickOrderPlugin/shop/product/matrix.html.twig',
+        ])
+    ;
+
+    $services
+        ->set('tmonier_quick_order.twig.extension', QuickOrderExtension::class)
+        ->args([service('tmonier_quick_order.matrix.activation_checker')])
+        ->tag('twig.extension')
     ;
 
     $services

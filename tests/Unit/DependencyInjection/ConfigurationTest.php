@@ -21,6 +21,15 @@ final class ConfigurationTest extends TestCase
             'default_mode' => 'partial',
             'allow_guests' => true,
             'quantity_rounding' => 'reject',
+            'matrix' => [
+                'enabled' => true,
+                'auto' => true,
+                'max_variants' => 100,
+                'max_grid_cells' => 60,
+                'products' => [],
+                'excluded_products' => [],
+                'attribute' => null,
+            ],
         ], (new Processor())->processConfiguration(new Configuration(), []));
     }
 
