@@ -18,7 +18,7 @@ final class ExtensionPrependTest extends TestCase
         (new TmonierSyliusQuickOrderExtension())->prepend($container);
 
         self::assertSame([['hooks' => ['tmonier_quick_order.shop.product.add_to_cart' => ['tmonier_tier_pricing' => [
-            'template' => '@TmonierSyliusTierPricingPlugin/shop/product/tier_prices.html.twig',
+            'template' => '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/tier_prices.html.twig',
             'priority' => 50,
         ]]]]], $container->getExtensionConfig('sylius_twig_hooks'));
     }

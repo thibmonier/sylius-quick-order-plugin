@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'Not available'
         matrix.cell.no_price: 'Not available'
         matrix.cell.out_of_stock: 'Out of stock'
+        matrix.tier_prices_vary: 'Volume prices depend on the variant: the cart applies them to each line.'
         cart_link: 'Add products by code (quick order)'
         mode:
             partial: 'Add the valid lines'

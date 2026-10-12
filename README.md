@@ -109,7 +109,9 @@ Product. The core add to cart form is not rendered for matrix products (its hook
 wrapper template); everything else on the product page is unchanged. What used to be shown
 inside the core form can register in the absolute hook `tmonier_quick_order.shop.product.add_to_cart`
 (context `product`, `form`): with `tmonier/sylius-tier-pricing-plugin` installed, its tier price
-table is registered there automatically (for the default variant of the form).
+table is shown there when every enabled variant has the same tiers (e.g. product-wide fixed
+prices); when tiers differ between variants, a short note says that volume prices depend on the
+variant and are applied in the cart.
 
 The matrix is available to visitors like the core form (`allow_guests` only gates the quick
 order pages). Quantity inputs are text fields (`inputmode="numeric"`): an unreadable value such
@@ -212,7 +214,7 @@ Shop parts use [Twig Hooks](https://stack.sylius.com/twig-hooks/getting-started)
 | `sylius_shop.cart.index.content` → `tmonier_quick_order_link` | Link to the quick order page under the cart |
 | `sylius_shop.product.show.content.info.summary` → `tmonier_quick_order_matrix` (priority 90) | Order matrix (live component `tmonier_quick_order:product:matrix`), a sibling of the core form |
 | `sylius_shop.product.show.content.info.summary` → `add_to_cart` (props `template` overridden) | Core form, not rendered for matrix products |
-| `tmonier_quick_order.shop.product.add_to_cart` (absolute name, context: `product`, `form`) | For matrix products, in place of the core form: extras of the core form (the tier price table is added there when the tier pricing plugin is installed) |
+| `tmonier_quick_order.shop.product.add_to_cart` (absolute name, context: `product`, `form`) | For matrix products, in place of the core form: extras of the core form (the tier price table, or a note when tiers differ between variants, when the tier pricing plugin is installed) |
 | `tmonier_quick_order.shop.product.matrix` (absolute name, context: `product`, `matrix`) | Under the matrix, for other plugins (e.g. a container fill gauge listening to `sylius:shop:cart_changed`) |
 | menu `sylius.menu.shop.account` → `tmonier_quick_order` | Link in the customer account menu |
 
@@ -240,8 +242,8 @@ lines and prices) is refused automatically: the plugin registers a bridge to tha
 - No XLSX import: paste from the spreadsheet or save it as CSV.
 - Matrix: 2 axes at most (a list beyond), not in product lists, no advanced keyboard
   navigation between cells yet (Tab works); the estimate uses catalog prices (tier prices and
-  cart promotions only show in the cart); the tier price table shown with the matrix is the one
-  of the form's default variant.
+  cart promotions only show in the cart); no per-variant tier table on matrix products (a note
+  when tiers differ between variants).
 - No saved lists, no customer-specific prices: prices are those of the channel, as in the
   regular cart.
 - The cart is not locked while lines are added: two simultaneous changes of the same cart

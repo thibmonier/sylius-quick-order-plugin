@@ -47,17 +47,23 @@ parameters:
 
 tmonier_sylius_quick_order:
     allow_guests: '%env(bool:TMONIER_QUICK_ORDER_ALLOW_GUESTS)%'
-    matrix:
-        # ShopMatrixTest: a 2-option product that keeps the core form.
-        excluded_products: ['QO_TEE_EXCLUDED']
-        products: ['QO_TEE_FORCED']
 
-sylius_twig_hooks:
-    hooks:
-        # ShopMatrixTest: the absolute hooks of the matrix page receive their context.
-        'tmonier_quick_order.shop.product.matrix':
-            test_extra:
-                template: 'matrix_extra.html.twig'
-        'tmonier_quick_order.shop.product.add_to_cart':
-            test_extra:
-                template: 'add_to_cart_extra.html.twig'
+# Test-only settings and hookables (not in the dev demo).
+when@test:
+    tmonier_sylius_quick_order:
+        matrix:
+            # ShopMatrixTest: a 2-option product that keeps the core form.
+            excluded_products: ['QO_TEE_EXCLUDED']
+            products: ['QO_TEE_FORCED']
+            # The test T-shirt has 11 enabled variants: one more keeps the core form.
+            max_variants: 11
+
+    sylius_twig_hooks:
+        hooks:
+            # ShopMatrixTest: the absolute hooks of the matrix page receive their context.
+            'tmonier_quick_order.shop.product.matrix':
+                test_extra:
+                    template: 'matrix_extra.html.twig'
+            'tmonier_quick_order.shop.product.add_to_cart':
+                test_extra:
+                    template: 'add_to_cart_extra.html.twig'

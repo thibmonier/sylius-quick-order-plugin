@@ -15,8 +15,8 @@
 - Hook `tmonier_quick_order.shop.product.matrix` under the matrix for other plugins.
 - New configuration node `matrix`. No change to the 1.0 public API.
 - Hook `tmonier_quick_order.shop.product.add_to_cart` (context `product`, `form`) for matrix
-  products; the tier price table of tmonier/sylius-tier-pricing-plugin is registered there when
-  that plugin is installed.
+  products; when tmonier/sylius-tier-pricing-plugin is installed, its tier price table is shown
+  there if every variant has the same tiers, otherwise a note.
 - The quick order result and report pages honour `allow_guests`.
 
 ## 1.0.0

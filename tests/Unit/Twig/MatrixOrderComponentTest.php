@@ -62,6 +62,14 @@ final class MatrixOrderComponentTest extends TestCase
 
         // 12 x 10.00 + 3 x 5.00; "1.000" is ambiguous, D not orderable, 10000 > line limit, v99 unknown.
         self::assertSame(['units' => 15, 'total' => 13500], $component->getEstimate());
+
+        // What the cart rejects (empty once cleaned, not a string) is not estimated.
+        foreach (['""', "\u{A0}", "\u{FEFF}", ' ', '0', '-1'] as $empty) {
+            $component->quantities = ['v1' => $empty];
+            self::assertSame(['units' => 0, 'total' => 0], $component->getEstimate(), json_encode($empty, \JSON_THROW_ON_ERROR));
+        }
+        $component->quantities = ['v1' => ['3'], 'v2' => 2];
+        self::assertSame(['units' => 2, 'total' => 1000], $component->getEstimate());
     }
 
     public function testTheEstimateAppliesQuantityRulesWithTheCartContent(): void
@@ -100,16 +108,45 @@ final class MatrixOrderComponentTest extends TestCase
             new LineResult('B', '7', 7, LineStatus::InvalidQuantity, [2]),
         ], true, null, BulkAddMode::Partial))->toArray();
 
-        $previous = $component->quantities;
+        $component->resultQuantities = $component->quantities;
+
         $component->quantities['v1'] = '3';
-        $component->onQuantitiesUpdated($previous);
+        $component->beforeReRender();
         self::assertNull($component->getLineResult('A'));
         self::assertNotNull($component->getLineResult('B'));
 
-        $previous = $component->quantities;
         $component->quantities['v2'] = '2';
-        $component->onQuantitiesUpdated($previous);
+        $component->beforeReRender();
         self::assertNull($component->lastResult, 'No failed line left: the banner goes too.');
+    }
+
+    public function testNothingIsAddedForADisabledOrOtherChannelProduct(): void
+    {
+        $product = MatrixFixtures::product('P', ['size' => ['S']], $this->channel);
+        $s = MatrixFixtures::variant($product, ['S']);
+        $this->cells = [new MatrixCell(self::id($s), 'P-S', 'S', CellStatus::Orderable, 1000)];
+        $other = MatrixFixtures::channel();
+        $other->setCode('OTHER');
+
+        foreach (['disabled' => static fn () => $product->setEnabled(false), 'other channel' => static function () use ($product, $other): void {
+            $product->setEnabled(true);
+            foreach ($product->getChannels() as $channel) {
+                $product->removeChannel($channel);
+            }
+            $product->addChannel($other);
+        }] as $case => $change) {
+            $adder = new RecordingBulkCartAdder();
+            $responder = new \Symfony\UX\LiveComponent\LiveResponder();
+            $component = $this->component(adder: new MatrixOrderHandler($adder), product: $product, responder: $responder);
+            $component->quantities = [MatrixOrderHandler::key($s) => '2'];
+            $change();
+
+            $component->add();
+
+            self::assertNull($adder->input, $case);
+            self::assertSame([], $responder->getEventsToEmit(), $case);
+            self::assertNull($component->getMatrix(), $case);
+        }
     }
 
     public function testCellsThatBecomeOrderableGetAKey(): void
@@ -157,7 +194,7 @@ final class MatrixOrderComponentTest extends TestCase
         self::assertSame(['M'], array_map(static fn (MatrixCell $cell): string => $cell->label, $component->getFailedCells()));
     }
 
-    private function component(QuantityRounding $rounding = QuantityRounding::Reject, ?MatrixOrderHandler $adder = null, ?ProductInterface $product = null): MatrixOrderComponent
+    private function component(QuantityRounding $rounding = QuantityRounding::Reject, ?MatrixOrderHandler $adder = null, ?ProductInterface $product = null, ?\Symfony\UX\LiveComponent\LiveResponder $responder = null): MatrixOrderComponent
     {
         $test = $this;
         $component = new MatrixOrderComponent(
@@ -208,7 +245,7 @@ final class MatrixOrderComponentTest extends TestCase
             $rounding,
         );
         $component->product = $product ?? MatrixFixtures::product('P', ['size' => ['S']], $this->channel);
-        $component->setLiveResponder(new \Symfony\UX\LiveComponent\LiveResponder());
+        $component->setLiveResponder($responder ?? new \Symfony\UX\LiveComponent\LiveResponder());
 
         return $component;
     }

@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'Nicht verfügbar'
         matrix.cell.no_price: 'Nicht verfügbar'
         matrix.cell.out_of_stock: 'Nicht vorrätig'
+        matrix.tier_prices_vary: 'Staffelpreise hängen von der Variante ab: Der Warenkorb wendet sie auf jede Zeile an.'
         cart_link: 'Produkte per Artikelnummer hinzufügen (Schnellbestellung)'
         mode:
             partial: 'Gültige Zeilen hinzufügen'

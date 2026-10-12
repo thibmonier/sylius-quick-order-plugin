@@ -1,0 +1,16 @@
+{#
+    Tier price table of tmonier/sylius-tier-pricing-plugin for matrix products (registered in the
+    "tmonier_quick_order.shop.product.add_to_cart" hook only when that plugin is installed).
+    The matrix has no selected variant: the table is shown only when every enabled variant has
+    the same tiers (same quantities and unit prices, e.g. product-wide fixed prices); otherwise a
+    note says that volume prices depend on the variant and are applied in the cart.
+#}
+{% set scope = tmonier_quick_order_tier_prices_scope(hookable_metadata.context.product) %}
+
+{% if scope == 'same' %}
+    {{ include('@TmonierSyliusTierPricingPlugin/shop/product/tier_prices.html.twig') }}
+{% elseif scope == 'different' %}
+    <div class="small text-body-secondary mb-3" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-tier-note') }}>
+        {{ 'tmonier_quick_order.ui.matrix.tier_prices_vary'|trans }}
+    </div>
+{% endif %}

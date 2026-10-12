@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'Non disponibile'
         matrix.cell.no_price: 'Non disponibile'
         matrix.cell.out_of_stock: 'Esaurito'
+        matrix.tier_prices_vary: 'I prezzi per quantità dipendono dalla variante: il carrello li applica a ogni riga.'
         cart_link: 'Aggiungi prodotti per codice (ordine rapido)'
         mode:
             partial: 'Aggiungi le righe valide'

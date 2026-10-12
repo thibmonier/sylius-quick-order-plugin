@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'Niedostępny'
         matrix.cell.no_price: 'Niedostępny'
         matrix.cell.out_of_stock: 'Brak w magazynie'
+        matrix.tier_prices_vary: 'Ceny ilościowe zależą od wariantu: koszyk stosuje je do każdego wiersza.'
         cart_link: 'Dodaj produkty według kodu (szybkie zamówienie)'
         mode:
             partial: 'Dodaj poprawne wiersze'

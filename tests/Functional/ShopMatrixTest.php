@@ -41,7 +41,8 @@ final class ShopMatrixTest extends WebTestCase
         // Prices (catalog calculator) and never a stock count (onHand is 100): cells only.
         self::assertSelectorTextContains('[data-test-tmonier-quick-order-matrix-price="' . $prefix . '-S-RED"]', '15.00');
         self::assertSelectorTextContains('[data-test-tmonier-quick-order-matrix-price="' . $prefix . '-L-RED"]', '17.00');
-        foreach ($grid->filter('td')->each(static fn (Crawler $td): string => $td->text()) as $cell) {
+        // Body cells only: the header cell holds the option names (random suffix).
+        foreach ($grid->filter('tbody td')->each(static fn (Crawler $td): string => $td->text()) as $cell) {
             self::assertStringNotContainsString('100', $cell);
         }
         // A disabled variant is announced, not only drawn as a dash.
@@ -93,6 +94,68 @@ final class ShopMatrixTest extends WebTestCase
 
         self::assertSelectorTextContains('[data-test-tmonier-quick-order-matrix-empty]', 'Not available');
         self::assertSelectorTextNotContains('[data-test-tmonier-quick-order-matrix-empty]', 'Out of stock');
+    }
+
+    public function testProductsAboveMaxVariantsKeepTheCoreForm(): void
+    {
+        $variants = $this->catalog->teeMatrix();
+        $prefix = 'QO-' . $this->catalog->suffix;
+        // 12 enabled variants > matrix.max_variants (11 in the test application).
+        $variants[$prefix . '-XL-BLUE']->setEnabled(true);
+        $pricing = self::getContainer()->get('sylius.factory.channel_pricing');
+        self::assertInstanceOf(\Sylius\Resource\Factory\FactoryInterface::class, $pricing);
+        $price = $pricing->createNew();
+        self::assertInstanceOf(\Sylius\Component\Core\Model\ChannelPricingInterface::class, $price);
+        $price->setChannelCode($this->catalog->channel()->getCode());
+        $price->setPrice(1800);
+        $variants[$prefix . '-XL-RED']->addChannelPricing($price);
+        $this->entityManager()->flush();
+
+        $this->client->request('GET', $this->productUrl($variants));
+
+        self::assertSelectorExists('[data-test-product-selecting-variant]');
+        self::assertSelectorNotExists('[data-test-tmonier-quick-order-matrix]');
+    }
+
+    public function testTheLiveComponentAddsNothingOnceTheProductIsDisabled(): void
+    {
+        $variants = $this->catalog->teeMatrix();
+        $prefix = 'QO-' . $this->catalog->suffix;
+        $this->client->request('GET', $this->productUrl($variants));
+        $product = self::first($variants)->getProduct();
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $product], $this->client)
+            ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode())
+            ->set('quantities.' . MatrixOrderHandler::key($variants[$prefix . '-S-RED']), '2');
+
+        $reloaded = $this->entityManager()->find(\Sylius\Component\Core\Model\ProductInterface::class, $product?->getId());
+        self::assertNotNull($reloaded);
+        $reloaded->setEnabled(false);
+        $this->entityManager()->flush();
+        $component->call('add');
+
+        $this->assertComponentNotEmitEvent($component, 'sylius:shop:cart_changed');
+        self::assertStringNotContainsString('tmonier-quick-order-matrix-form', $component->render()->toString());
+        self::assertNull($this->sessionCart());
+    }
+
+    public function testACorrectedQuantityDropsItsMessage(): void
+    {
+        $variants = $this->catalog->teeMatrix();
+        $prefix = 'QO-' . $this->catalog->suffix;
+        $this->client->request('GET', $this->productUrl($variants));
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+            ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
+        $key = MatrixOrderHandler::key($variants[$prefix . '-M-RED']);
+        $selector = '[data-test-tmonier-quick-order-matrix-input="' . $prefix . '-M-RED"]';
+
+        $component->set('quantities.' . $key, '500')->call('add');
+        self::assertSame('true', (new Crawler($component->render()->toString()))->filter($selector)->attr('aria-invalid'));
+
+        // The browser updates the nested path "quantities.v<id>".
+        $component->set('quantities.' . $key, '2');
+        $rendered = new Crawler($component->render()->toString());
+        self::assertNull($rendered->filter($selector)->attr('aria-invalid'));
+        self::assertCount(0, $rendered->filter('[data-test-tmonier-quick-order-matrix-result]'));
     }
 
     public function testExcludedProductsKeepTheCoreForm(): void

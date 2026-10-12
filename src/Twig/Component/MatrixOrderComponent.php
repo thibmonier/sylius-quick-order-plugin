@@ -53,8 +53,16 @@ final class MatrixOrderComponent
     public ?ProductInterface $product = null;
 
     /** @var array<mixed> quantities by "v" + variant id, as typed (validated on the server) */
-    #[LiveProp(writable: true, onUpdated: 'onQuantitiesUpdated')]
+    #[LiveProp(writable: true)]
     public array $quantities = [];
+
+    /**
+     * @var array<mixed> quantities when lastResult was computed: a cell whose quantity differs
+     *                   has been corrected since, its message is dropped (the browser updates
+     *                   "quantities.v<id>" paths, which the onUpdated hook of the whole prop never sees)
+     */
+    #[LiveProp]
+    public array $resultQuantities = [];
 
     #[LiveProp(writable: true)]
     public bool $allOrNothing = false;
@@ -124,6 +132,7 @@ final class MatrixOrderComponent
             $this->lastResult = $stored['result'];
             $this->quantities = array_filter($stored['quantities'], static fn (mixed $quantity): bool => \is_string($quantity));
             $this->allOrNothing = true === ($stored['all_or_nothing'] ?? false);
+            $this->resultQuantities = $this->quantities;
         }
         $this->initializeQuantities();
     }
@@ -132,7 +141,6 @@ final class MatrixOrderComponent
      * Every orderable cell has a key: the browser only sets existing model paths. Also before
      * re-renders, for cells that became orderable since the mount.
      */
-    #[PreReRender]
     public function initializeQuantities(): void
     {
         foreach ($this->getMatrix()->cells ?? [] as $cell) {
@@ -142,13 +150,18 @@ final class MatrixOrderComponent
         }
     }
 
+    #[PreReRender]
+    public function beforeReRender(): void
+    {
+        $this->initializeQuantities();
+        $this->dropCorrectedLines();
+    }
+
     /**
-     * A changed quantity drops the result line of its cell (its message quoted the old value);
-     * the banner goes when no failed line is left.
-     *
-     * @param array<mixed> $previous
+     * A quantity changed since the result drops the result line of its cell (its message quoted
+     * the old value); the banner goes when no failed line is left.
      */
-    public function onQuantitiesUpdated(array $previous): void
+    public function dropCorrectedLines(): void
     {
         $result = $this->getResult();
         if (null === $result) {
@@ -156,7 +169,8 @@ final class MatrixOrderComponent
         }
         $changed = [];
         foreach ($this->getMatrix()->cells ?? [] as $cell) {
-            if (($previous[$cell->getKey()] ?? '') !== ($this->quantities[$cell->getKey()] ?? '')) {
+            $key = $cell->getKey();
+            if (self::normalized($this->resultQuantities[$key] ?? '') !== self::normalized($this->quantities[$key] ?? '')) {
                 $changed[] = $cell->code;
             }
         }
@@ -167,6 +181,12 @@ final class MatrixOrderComponent
         $lines = array_values(array_filter($result->lines, static fn (LineResult $line): bool => !\in_array($line->code, $changed, true)));
         $remaining = new BulkAddResult($lines, $result->applied, $result->refusal, $result->mode);
         $this->lastResult = [] === $remaining->getErrors() ? null : $remaining->toArray();
+        $this->resultQuantities = null === $this->lastResult ? [] : $this->quantities;
+    }
+
+    private static function normalized(mixed $quantity): string
+    {
+        return \is_string($quantity) || \is_int($quantity) ? (string) $quantity : '';
     }
 
     /** Typed quantity of a cell, as shown in its input. */
@@ -269,15 +289,18 @@ final class MatrixOrderComponent
             }
             $this->emit(self::CART_CHANGED, ['cartId' => $cart->getId()]);
         }
+        $this->resultQuantities = $this->quantities;
     }
 
     private function estimatedQuantity(MatrixCell $cell, int $inCart): ?int
     {
-        $quantity = trim($this->getQuantity($cell->getKey()));
-        if (!$cell->isOrderable() || '' === $quantity) {
+        // Read like MatrixOrderHandler::input() and LineCollector: strings and integers only,
+        // cleaned ('""', no-break spaces, BOM) before the empty check.
+        $raw = $this->quantities[$cell->getKey()] ?? null;
+        if (!$cell->isOrderable() || !(\is_string($raw) || \is_int($raw)) || '' === LineCollector::clean((string) $raw)) {
             return null;
         }
-        $quantity = LineCollector::parseQuantity($quantity);
+        $quantity = LineCollector::parseQuantity((string) $raw);
         if (null === $quantity) {
             return null;
         }

@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'Niet beschikbaar'
         matrix.cell.no_price: 'Niet beschikbaar'
         matrix.cell.out_of_stock: 'Niet op voorraad'
+        matrix.tier_prices_vary: 'Staffelprijzen hangen af van de variant: de winkelwagen past ze per regel toe.'
         cart_link: 'Producten toevoegen op code (snelbestelling)'
         mode:
             partial: 'Geldige regels toevoegen'

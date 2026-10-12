@@ -31,6 +31,7 @@ tmonier_quick_order:
         matrix.cell.disabled: 'No disponible'
         matrix.cell.no_price: 'No disponible'
         matrix.cell.out_of_stock: 'Agotado'
+        matrix.tier_prices_vary: 'Los precios por volumen dependen de la variante: el carrito los aplica a cada línea.'
         cart_link: 'Añadir productos por código (pedido rápido)'
         mode:
             partial: 'Añadir las líneas válidas'
