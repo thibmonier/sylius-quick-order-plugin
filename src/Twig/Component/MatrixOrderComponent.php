@@ -104,7 +104,7 @@ final class MatrixOrderComponent
     #[PostMount]
     public function initializeQuantities(): void
     {
-        foreach ($this->getMatrix()?->cells ?? [] as $cell) {
+        foreach ($this->getMatrix()->cells ?? [] as $cell) {
             if ($cell->isOrderable()) {
                 $this->quantities[$cell->getKey()] ??= '';
             }
@@ -129,7 +129,7 @@ final class MatrixOrderComponent
     {
         $units = 0;
         $total = 0;
-        foreach ($this->getMatrix()?->cells ?? [] as $cell) {
+        foreach ($this->getMatrix()->cells ?? [] as $cell) {
             $quantity = $this->getQuantity($cell->getKey());
             if ($cell->isOrderable() && null !== $cell->price && 1 === preg_match('/^\d{1,9}$/', trim($quantity))) {
                 $units += (int) $quantity;
@@ -159,7 +159,7 @@ final class MatrixOrderComponent
     /** Result line of a cell, by variant code. */
     public function getLineResult(string $code): ?LineResult
     {
-        foreach ($this->getResult()?->lines ?? [] as $line) {
+        foreach ($this->getResult()->lines ?? [] as $line) {
             if ($line->code === $code) {
                 return $line;
             }
@@ -187,7 +187,7 @@ final class MatrixOrderComponent
             foreach ($result->lines as $line) {
                 if ($line->addedQuantity > 0) {
                     $cell = null;
-                    foreach ($this->getMatrix()?->cells ?? [] as $candidate) {
+                    foreach ($this->getMatrix()->cells ?? [] as $candidate) {
                         $cell = $candidate->code === $line->code ? $candidate : $cell;
                     }
                     if (null !== $cell) {

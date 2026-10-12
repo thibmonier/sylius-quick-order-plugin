@@ -1,7 +1,7 @@
 # Quick order plugin: specification and decisions
 
-Scope: v1 of `tmonier/sylius-quick-order-plugin` (quick order page, CSV, reorder, shop API).
-The variant matrix on product pages is v1.1 and not part of this version.
+Scope: v1.0 of `tmonier/sylius-quick-order-plugin` (quick order page, CSV, reorder, shop API)
+and v1.1 (order matrix on product pages, section 8).
 
 ## 1. Research summary
 
@@ -135,3 +135,51 @@ The variant matrix on product pages is v1.1 and not part of this version.
 - Dispatching `CART_ITEM_POST_ADD` per line on 2.3 (possible through version detection;
   side effects not verified) is left out.
 - No locking: concurrent changes of one cart follow the core "last write wins".
+
+## 8. v1.1: order matrix
+
+Sources: memo B2B section 3.1 "v1.1 : matrice" (docs/2026-10-11-memo-b2b.md), memo container
+fill section 4 (the matrix embeds other plugins' gauges and must emit `cart_changed`).
+
+### Verified seams (Sylius 2.3.0 vendor)
+
+| Seam | Finding | Use |
+|---|---|---|
+| Hook `sylius_shop.product.show.content.info.summary`: `add_to_cart` (component `sylius_shop:product:add_to_cart_form`, priority 100) | Its template wraps everything in the core `<form>`: anything in `...summary.add_to_cart` would be a nested form | Matrix = sibling hookable (priority 90) |
+| Twig hooks config merges props of a hookable defined twice | Our `add_to_cart.props.template` replaces the template only (component and `product` prop kept; checked with `debug:config`) | Wrapper template renders an empty root for matrix products, the core template otherwise |
+| Hookable `condition` (expression) | Exists in twig-hooks 0.14; not used: needs a custom expression function and is not verified on 2.2 | Wrapper template instead |
+| `CatalogPricesCalculatorInterface` (2.3, `sylius.calculator.product_variant_catalog_price`) | UPGRADE-2.3 item 4: catalog display prices, decorable independently of cart prices | `CatalogPriceCalculatorPass` aliases it, else `sylius.calculator.product_variant_price` (2.2) |
+| `calculateLowestPriceBeforeDiscount()` | Null unless the channel shows the Omnibus lowest price for this variant | Struck price when greater than the price |
+| `sylius:shop:cart_changed` (`Cart\FormComponent::SYLIUS_SHOP_CART_CHANGED`), listened to by `Cart\WidgetComponent` and `SummaryComponent` | Emitted by components | `MatrixOrderComponent::add()` emits it after an applied addition |
+| Live component tag `sylius.live_component.shop` (`LiveComponentTagPass`) | Adds the twig.component tag with the shop live route | Same tag, key `tmonier_quick_order:product:matrix` |
+| UX Live: writable array prop `quantities` | The browser refuses to set a model path that does not exist (`Invalid model name`) | Every orderable cell key exists from `PostMount`; keys are `v<id>` so the array is never a JSON list |
+| UX Live: a public getter named like a LiveProp | The dehydrator reads the getter (`getResult()` returned an object for the `result` prop) | Prop `lastResult`, getter `getResult()` |
+
+### Decisions
+
+| Decision | Why |
+|---|---|
+| Activation: excluded list, forced list, checkbox attribute, then "1-2 options and <= max_variants enabled variants" | No field on Product; the attribute gives merchants a switch per product from the admin. |
+| Grid only for 2 options whose used values fit `max_grid_cells` and whose variants map one-to-one to cells; otherwise a list | A grid must never hide or merge variants. |
+| Disabled variants greyed in a grid (shape kept), left out of a list; no price = "not available"; tracked stock with nothing available = "out of stock" | Same information as the core page, never a stock count. Untracked stock is orderable (no backorders in the core). |
+| Adding = `MatrixOrderHandler` → v1 `BulkCartAdder` | One processing, the v1 statuses and checks (enabled, channel, price, stock with the cart, quantity rules, unit limit, quote carts); only variants of the product, array bounded by the number of variants. |
+| Stay on the product page after adding, result above the grid, added cells cleared, failing cells keep their value with the message | B2B buyers fill several products in a row; the cart widget refreshes through `cart_changed`. |
+| Estimate = catalog price x whole quantities, labelled "before cart promotions and shipping" | Tier prices (tier-pricing plugin) and promotions are applied by the cart, which stays the truth. |
+| No-JS fallback: same form posted to `tmonier_quick_order_shop_matrix_add` (CSRF), redirect to the cart or the quick order result page | Progressive enhancement: `data-action="live#action:prevent"` on the same form. |
+| Accessibility: `<table>` with `<caption>`, `th scope=col/row`, one labelled number input per cell (`aria-label` "row / column"), errors linked with `aria-describedby`, `aria-live` estimate | Advanced keyboard navigation (arrows between cells) is v1.2. |
+
+### Tests
+
+- Unit: activation rules (lists, attribute, automatic rule, disabled variants), builder (grid,
+  statuses, unused values, list fallbacks, struck price, quantity rules), order handler
+  (foreign variants ignored, bounded array, zeros, ambiguous quantities, mode).
+- Functional: matrix product page (grid, headers, labels, unavailable cells, no core form, no
+  stock count), other products keep the core form, no-JS fallback (cart, result page, 404 for
+  other products, CSRF), live component (`InteractsWithLiveComponents`: add, emitted
+  `sylius:shop:cart_changed`, tampered foreign variant ignored, all-or-nothing errors without
+  emission).
+
+### Not verified
+
+- Sylius 2.2 (UX Live 2.x, twig-hooks 0.12) and the tier pricing plugin installed together:
+  written against their APIs, run on Sylius 2.3 / UX 3.5 only.

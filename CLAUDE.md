@@ -51,6 +51,13 @@ the plugin has no table, CI runs `--skip-sync`.
   `BulkAddItemsResult`.
 - Grid action `tmonier_quick_order_reorder` on `sylius_shop_account_order`
   (`config/app/grid.yaml`), hooks in `config/twig_hooks/shop.yaml`, account menu listener.
+- Order matrix (v1.1): `Matrix/` (`MatrixActivationChecker`, `MatrixBuilder` → `Matrix` /
+  `MatrixCell`, `MatrixOrderHandler` → bulk adder), live component
+  `Twig/Component/MatrixOrderComponent` (template `templates/shop/product/matrix.html.twig`,
+  quantities keyed `v<variant id>`, prop `lastResult`), wrapper `templates/shop/product/add_to_cart.html.twig`
+  hiding the core form, Twig function `tmonier_quick_order_is_matrix`, fallback action
+  `QuickOrderController::matrixAddAction`, `CatalogPriceCalculatorPass` (2.3 catalog calculator,
+  2.2 fallback). Live component tests use `InteractsWithLiveComponents` with the test client.
 - `Fixture/QuickOrderDemoCatalogFixture` (`tmonier_quick_order_demo_catalog`, idempotent).
 
 ## Rules

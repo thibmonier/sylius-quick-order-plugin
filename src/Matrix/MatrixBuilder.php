@@ -75,17 +75,15 @@ final class MatrixBuilder implements MatrixBuilderInterface
             $grid[$row][$column] = $cells[$index];
         }
 
-        $used = static fn (array $values, callable $isUsed): array => array_values(array_filter($values, $isUsed));
-        $rows = $used($rows, static fn (array $value): bool => isset($grid[$value['code']]));
-        $columns = $used($columns, static function (array $value) use ($grid): bool {
-            foreach ($grid as $row) {
-                if (isset($row[$value['code']])) {
-                    return true;
-                }
+        // Option values without any variant are left out.
+        $usedColumns = [];
+        foreach ($grid as $rowCells) {
+            foreach (array_keys($rowCells) as $columnCode) {
+                $usedColumns[$columnCode] = true;
             }
-
-            return false;
-        });
+        }
+        $rows = array_values(array_filter($rows, static fn (array $value): bool => isset($grid[$value['code']])));
+        $columns = array_values(array_filter($columns, static fn (array $value): bool => isset($usedColumns[$value['code']])));
 
         return new Matrix(Matrix::LAYOUT_GRID, $cells, $options[0]->getName(), $options[1]->getName(), $rows, $columns, $grid);
     }

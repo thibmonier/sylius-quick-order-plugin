@@ -12,7 +12,6 @@ use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariant;
 use Sylius\Component\Core\Model\ProductVariantInterface;
 use Sylius\Component\Product\Model\ProductOption;
-use Sylius\Component\Product\Model\ProductOptionInterface;
 use Sylius\Component\Product\Model\ProductOptionValue;
 
 /** In-memory products with options and variants (ids set by reflection). */
@@ -73,7 +72,6 @@ final class MatrixFixtures
         }
         $index = 0;
         foreach ($product->getOptions() as $option) {
-            \assert($option instanceof ProductOptionInterface);
             $code = $valueCodes[$index++] ?? null;
             foreach ($option->getValues() as $value) {
                 if ($option->getCode() . '_' . $code === $value->getCode()) {

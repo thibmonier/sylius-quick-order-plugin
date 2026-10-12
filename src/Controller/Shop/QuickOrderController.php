@@ -7,8 +7,8 @@ namespace Tmonier\SyliusQuickOrderPlugin\Controller\Shop;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
-use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\OrderInterface;
+use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Sylius\Component\Customer\Context\CustomerContextInterface;
 use Sylius\Component\Order\Context\CartContextInterface;
@@ -159,9 +159,9 @@ final class QuickOrderController extends AbstractController
     {
         $product = $this->productRepository?->find($productId);
         $channel = $this->channelContext->getChannel();
-        if (!$product instanceof ProductInterface || null === $this->matrixOrderHandler || !$product->isEnabled()
-            || !$channel instanceof ChannelInterface || !$product->hasChannel($channel)
-            || true !== $this->matrixActivationChecker?->isMatrixProduct($product)) {
+        if (!$product instanceof ProductInterface || null === $this->matrixOrderHandler || !$product->isEnabled() ||
+            !$channel instanceof ChannelInterface || !$product->hasChannel($channel) ||
+            true !== $this->matrixActivationChecker?->isMatrixProduct($product)) {
             throw new NotFoundHttpException('Product not found.');
         }
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {

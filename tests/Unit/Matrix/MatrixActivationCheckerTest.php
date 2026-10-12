@@ -26,7 +26,9 @@ final class MatrixActivationCheckerTest extends TestCase
     public function testDisabledVariantsDoNotCount(): void
     {
         $product = $this->product(['size' => ['S', 'M', 'L', 'XL']], 4);
-        $product->getVariants()->last()?->setEnabled(false);
+        $last = $product->getVariants()->last();
+        self::assertInstanceOf(\Sylius\Component\Core\Model\ProductVariantInterface::class, $last);
+        $last->setEnabled(false);
 
         self::assertTrue((new MatrixActivationChecker(true, true, 3))->isMatrixProduct($product));
     }

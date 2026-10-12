@@ -4,7 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Order by product code for Sylius 2: paste lines or upload a CSV file, preview, then add
-up to hundreds of lines to the cart at once. Reorder past orders. Bulk add through the shop API.**
+up to hundreds of lines to the cart at once. Order many variants from a size x colour
+matrix on product pages. Reorder past orders. Bulk add through the shop API.**
 
 B2B buyers know their references. Adding 80 products one product page at a time is slow,
 and adding them one by one through the cart re-processes the whole order on every line.
@@ -20,6 +21,7 @@ that add every line with a single order processing. Free and open source.
 | Know what will happen before it happens | **Preview** with a status per line: ready, insufficient stock (counting what is already in the cart), quantity above the cart line limit, quantity rule of the product, invalid quantity; for logged-in customers also unknown code, unavailable (product or variant disabled), not sold in this channel, no price. Then one **"Add N lines"** button. |
 | Never lose the failing lines | **Error report** (CSV, formulas neutralised) with the lines that were not added, ready to fix and upload again. |
 | Choose the behaviour | **Partial** (add the valid lines, report the others; default) or **all or nothing**. |
+| Order a whole size run from the product page | **Order matrix** replacing the core add to cart form on products with 1 or 2 options (configurable): a grid (rows = first option, columns = second option) or a list, one quantity per variant, prices with the Omnibus struck price when the channel shows it, an estimate of units and amount, one **"Add to cart"** for everything (same checks and single processing as the quick order). Unavailable, unpriced and out of stock variants are shown as not orderable, stock counts never. Works without JavaScript (plain form) and refreshes the cart widget with JavaScript (`sylius:shop:cart_changed`). |
 | Buy the same things again | **Order again** button on the customer's order page and in the order list. Removed, disabled or unpriced variants are reported, the other lines are added at today's prices. |
 | Integrate an ERP, a punch-out or a SPA | **`POST /api/v2/shop/orders/{tokenValue}/bulk-items`** with the same checks and a status per line. |
 | Stay fast | Duplicates are merged, variants are loaded in **one query**, items are merged into existing cart lines like the core does, the order is **processed once and flushed once**, whatever the number of lines. |
@@ -29,6 +31,8 @@ links from the cart page and the customer account menu; no JavaScript needed; ev
 your own rules; MySQL, MariaDB and PostgreSQL support (the plugin has no table).
 
 ## Screenshots
+
+![Order matrix on a product page](docs/images/shop-product-matrix.png)
 
 ![Quick order preview](docs/images/shop-quick-order-preview.jpg)
 
@@ -89,7 +93,20 @@ tmonier_sylius_quick_order:
     default_mode: partial       # or all_or_nothing
     allow_guests: true          # false: visitors are sent to the login page
     quantity_rounding: reject   # or round_up (see "Pack sizes" below)
+    matrix:
+        enabled: true
+        auto: true              # products with 1 or 2 options and at most max_variants enabled variants
+        max_variants: 100
+        max_grid_cells: 60      # a 2-option product with more cells is shown as a list
+        products: []            # product codes that always get the matrix (a list beyond 2 options)
+        excluded_products: []   # product codes that never get it
+        attribute: ~            # code of a checkbox product attribute: checked = matrix, unchecked = core form
 ```
+
+Which products get the matrix: `excluded_products`, then `products`, then the checkbox
+attribute when it is set on the product, then the automatic rule. There is no field on
+Product. The core add to cart form is not rendered for matrix products (its hookable gets a
+wrapper template); everything else on the product page is unchanged.
 
 Quantities are whole numbers (`1000`); a zero fraction of one or two digits, as spreadsheets
 export it, is accepted (`5.0`, `12,00`). Thousands groups (`1,000`, `1.000`, `1 000`) are
@@ -171,6 +188,7 @@ Response (`200`):
 | Pack sizes, minimum and maximum quantities | Alias `tmonier_quick_order.quantity_constraint_provider` to your `QuantityConstraintProviderInterface` implementation returning a `QuantityConstraint(minimum, multipleOf, maximum)`. The constraint applies to the quantity the cart line will hold (already in the cart + added). With `quantity_rounding: round_up`, the added quantity is raised so that this total is valid (shown in the preview); with `reject`, the line is reported. The default provider returns no constraint. A future `tmonier/sylius-container-fill-plugin` will own this logistics data. |
 | Your own rules before adding (budget, credit...) | Listen to `tmonier_quick_order.pre_bulk_add` (`PreBulkAddEvent`: cart, validated lines, mode) and call `refuse('my_reason')`; translate `tmonier_quick_order.refusal.my_reason` in the `flashes` domain. The API answers `422` with the reason. |
 | React after the addition | `tmonier_quick_order.post_bulk_add` (`PostBulkAddEvent`: cart, result), dispatched after the flush. |
+| Matrix activation, layout and adding | `MatrixActivationCheckerInterface` (`tmonier_quick_order.matrix.activation_checker`), `MatrixBuilderInterface`, `MatrixOrderHandlerInterface`. Matrix prices come from `CatalogPricesCalculatorInterface` on Sylius 2.3 (decorate it to change displayed prices) and from the variant price calculator on 2.2; the amounts are an estimate, the cart applies tier prices and promotions. |
 | Use the engine elsewhere | `Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface` (`validate()` for a preview, `add()`), with `PasteParser`, `CsvParser` or `LineCollector` to build the input. |
 
 Shop parts use [Twig Hooks](https://stack.sylius.com/twig-hooks/getting-started):
@@ -180,6 +198,9 @@ Shop parts use [Twig Hooks](https://stack.sylius.com/twig-hooks/getting-started)
 | `sylius_shop.account.order.show.content.main.header.buttons` → `tmonier_quick_order_reorder` | "Order again" button on the order page |
 | grid `sylius_shop_account_order`, item action `tmonier_quick_order_reorder` | "Order again" in the order list |
 | `sylius_shop.cart.index.content` → `tmonier_quick_order_link` | Link to the quick order page under the cart |
+| `sylius_shop.product.show.content.info.summary` → `tmonier_quick_order_matrix` (priority 90) | Order matrix (live component `tmonier_quick_order:product:matrix`), a sibling of the core form |
+| `sylius_shop.product.show.content.info.summary` → `add_to_cart` (props `template` overridden) | Core form, not rendered for matrix products |
+| `tmonier_quick_order.shop.product.matrix` (context: `product`, `matrix`) | Under the matrix, for other plugins (e.g. a container fill gauge listening to `sylius:shop:cart_changed`) |
 | menu `sylius.menu.shop.account` → `tmonier_quick_order` | Link in the customer account menu |
 
 Templates can be overridden in `templates/bundles/TmonierSyliusQuickOrderPlugin/`.
@@ -204,8 +225,12 @@ lines and prices) is refused automatically: the plugin registers a bridge to tha
   designates a single variant (that second query cannot use the code index; it only runs
   for codes without exact match). Lines resolved to the same variant are merged.
 - No XLSX import: paste from the spreadsheet or save it as CSV.
-- No variant matrix on product pages yet (planned), no saved lists, no customer-specific
-  prices: prices are those of the channel, as in the regular cart.
+- Matrix: 2 axes at most (a list beyond), not in product lists, no advanced keyboard
+  navigation between cells yet (Tab works); the estimate uses catalog prices (tier prices and
+  cart promotions only show in the cart). With `tmonier/sylius-tier-pricing-plugin`, the tier
+  table of the core form is not shown on matrix products.
+- No saved lists, no customer-specific prices: prices are those of the channel, as in the
+  regular cart.
 - The cart is not locked while lines are added: two simultaneous changes of the same cart
   follow the core rule (the last write wins).
 - Reorder adds today's prices and promotions, not those of the past order.
