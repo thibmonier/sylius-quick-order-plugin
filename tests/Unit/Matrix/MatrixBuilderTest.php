@@ -75,9 +75,31 @@ final class MatrixBuilderTest extends TestCase
         self::assertSame(Matrix::LAYOUT_LIST, $this->builder()->build($three, $this->channel)->layout);
 
         $big = MatrixFixtures::product('BIG', ['size' => ['S', 'M', 'L'], 'colour' => ['RED', 'BLUE']], $this->channel);
-        MatrixFixtures::variant($big, ['S', 'RED']);
+        foreach (['S', 'M', 'L'] as $size) {
+            MatrixFixtures::variant($big, [$size, 'RED']);
+            MatrixFixtures::variant($big, [$size, 'BLUE']);
+        }
         self::assertSame(Matrix::LAYOUT_LIST, $this->builder(maxGridCells: 5)->build($big, $this->channel)->layout);
         self::assertSame(Matrix::LAYOUT_GRID, $this->builder(maxGridCells: 6)->build($big, $this->channel)->layout);
+    }
+
+    public function testOnlyTheOptionValuesUsedByTheProductCountForTheGridLimit(): void
+    {
+        // Option values are shared by every product: 30 sizes x 10 colours in the catalog.
+        $sizes = array_map(static fn (int $i): string => 'S' . $i, range(1, 30));
+        $colours = array_map(static fn (int $i): string => 'C' . $i, range(1, 10));
+        $product = MatrixFixtures::product('TEE', ['size' => $sizes, 'colour' => $colours], $this->channel);
+        foreach (['S1', 'S2', 'S3', 'S4'] as $size) {
+            foreach (['C1', 'C2', 'C3'] as $colour) {
+                MatrixFixtures::variant($product, [$size, $colour]);
+            }
+        }
+
+        $matrix = $this->builder(maxGridCells: 12)->build($product, $this->channel);
+
+        self::assertSame(Matrix::LAYOUT_GRID, $matrix->layout);
+        self::assertCount(4, $matrix->rows);
+        self::assertCount(3, $matrix->columns);
     }
 
     public function testVariantsThatDoNotFitAGridMakeAList(): void
@@ -92,15 +114,32 @@ final class MatrixBuilderTest extends TestCase
         self::assertSame(Matrix::LAYOUT_LIST, $this->builder()->build($incomplete, $this->channel)->layout, 'A variant without colour');
     }
 
-    public function testTheStruckPriceIsTheLowestPriceBeforeDiscount(): void
+    public function testPricesFollowTheCoreRules(): void
     {
-        $product = MatrixFixtures::product('TEE', ['size' => ['S', 'M']], $this->channel);
+        $product = MatrixFixtures::product('TEE', ['size' => ['S', 'M', 'L']], $this->channel);
         MatrixFixtures::variant($product, ['S']);
         MatrixFixtures::variant($product, ['M']);
+        MatrixFixtures::variant($product, ['L']);
 
-        $matrix = $this->builder(lowest: ['TEE-S' => 1500, 'TEE-M' => 900])->build($product, $this->channel);
+        // S: discounted, the channel shows the Omnibus price. M: discounted, the channel does not.
+        // L: not discounted (a lowest price alone is never shown).
+        $matrix = $this->builder(original: ['TEE-S' => 1500, 'TEE-M' => 1200], lowest: ['TEE-S' => 900, 'TEE-L' => 800])->build($product, $this->channel);
 
-        self::assertSame([1500, null], array_map(static fn (MatrixCell $cell): ?int => $cell->struckPrice, $matrix->cells));
+        self::assertSame([1500, 1200, null], array_map(static fn (MatrixCell $cell): ?int => $cell->struckPrice, $matrix->cells));
+        self::assertSame([900, null, null], array_map(static fn (MatrixCell $cell): ?int => $cell->lowestPriceBeforeDiscount, $matrix->cells));
+    }
+
+    public function testAnEmptyMatrixTellsStockFromAvailability(): void
+    {
+        $unpriced = MatrixFixtures::product('NOPRICE', ['size' => ['S', 'M']], $this->channel);
+        MatrixFixtures::variant($unpriced, ['S'], null);
+        MatrixFixtures::variant($unpriced, ['M'], enabled: false);
+        $soldOut = MatrixFixtures::product('SOLDOUT', ['size' => ['S', 'M']], $this->channel);
+        MatrixFixtures::variant($soldOut, ['S'], 1000, true, 0);
+        MatrixFixtures::variant($soldOut, ['M'], null);
+
+        self::assertFalse($this->builder()->build($unpriced, $this->channel)->isOutOfStock());
+        self::assertTrue($this->builder()->build($soldOut, $this->channel)->isOutOfStock());
     }
 
     public function testQuantityRulesAreShown(): void
@@ -108,20 +147,27 @@ final class MatrixBuilderTest extends TestCase
         $product = MatrixFixtures::product('TEE', ['size' => ['S']], $this->channel);
         MatrixFixtures::variant($product, ['S']);
 
-        $cell = $this->builder(constraint: new QuantityConstraint(12, 6))->build($product, $this->channel)->cells[0];
+        $cell = $this->builder(constraint: new QuantityConstraint(12, 6, 60))->build($product, $this->channel)->cells[0];
 
-        self::assertSame([12, 6], [$cell->minimum, $cell->step]);
+        self::assertSame([12, 6, 60], [$cell->minimum, $cell->step, $cell->maximum]);
+        self::assertEquals(new QuantityConstraint(12, 6, 60), $cell->getConstraint());
         self::assertSame(CellStatus::Orderable, $cell->status);
         self::assertSame('v' . $cell->variantId, $cell->getKey());
     }
 
-    /** @param array<string, int> $lowest lowest price before discount by variant code */
-    private function builder(int $maxGridCells = 60, array $lowest = [], ?QuantityConstraint $constraint = null): MatrixBuilder
+    /**
+     * @param array<string, int> $original original price by variant code (default: the price)
+     * @param array<string, int> $lowest lowest price before discount by variant code
+     */
+    private function builder(int $maxGridCells = 60, array $lowest = [], ?QuantityConstraint $constraint = null, array $original = []): MatrixBuilder
     {
         return new MatrixBuilder(
-            new class($lowest) implements ProductVariantPricesCalculatorInterface {
-                /** @param array<string, int> $lowest */
-                public function __construct(private readonly array $lowest)
+            new class($lowest, $original) implements ProductVariantPricesCalculatorInterface {
+                /**
+                 * @param array<string, int> $lowest
+                 * @param array<string, int> $original
+                 */
+                public function __construct(private readonly array $lowest, private readonly array $original)
                 {
                 }
 
@@ -132,7 +178,7 @@ final class MatrixBuilderTest extends TestCase
 
                 public function calculateOriginal(ProductVariantInterface $productVariant, array $context): int
                 {
-                    return 1000;
+                    return $this->original[(string) $productVariant->getCode()] ?? 1000;
                 }
 
                 public function calculateLowestPriceBeforeDiscount(ProductVariantInterface $productVariant, array $context): ?int

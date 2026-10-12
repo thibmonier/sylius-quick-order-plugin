@@ -53,6 +53,21 @@ final class Matrix
         return array_values(array_filter($this->cells, static fn (MatrixCell $cell): bool => CellStatus::Disabled !== $cell->status));
     }
 
+    /** Nothing orderable because of stock (as opposed to prices or disabled variants). */
+    public function isOutOfStock(): bool
+    {
+        if ($this->hasOrderableCell()) {
+            return false;
+        }
+        foreach ($this->cells as $cell) {
+            if (CellStatus::OutOfStock === $cell->status) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function hasOrderableCell(): bool
     {
         foreach ($this->cells as $cell) {

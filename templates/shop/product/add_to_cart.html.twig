@@ -1,6 +1,13 @@
-{# Wraps the core add to cart form: products with the order matrix do not show it (no nested forms). #}
+{#
+    Wraps the core add to cart form: products with the order matrix do not show it (no nested
+    forms). Extras that live in the core form (e.g. the tier price table of
+    tmonier/sylius-tier-pricing-plugin) can register in the absolute hook
+    "tmonier_quick_order.shop.product.add_to_cart" (context: product, form).
+#}
 {% if tmonier_quick_order_is_matrix(product) %}
-    <div {{ attributes }} hidden></div>
+    <div {{ attributes }} {{ sylius_test_html_attribute('tmonier-quick-order-add-to-cart-extras') }}>
+        {% hook 'tmonier_quick_order.shop.product.add_to_cart' with { product, form, _prefixes: [] } %}
+    </div>
 {% else %}
     {{ include('@SyliusShop/product/show/content/info/summary/add_to_cart.html.twig') }}
 {% endif %}

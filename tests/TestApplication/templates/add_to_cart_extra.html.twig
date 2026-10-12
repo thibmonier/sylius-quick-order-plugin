@@ -1,0 +1,3 @@
+{# Like the tier price table of the tier pricing plugin: reads the variant of the core form. #}
+{% set form = hookable_metadata.context.form %}
+<div data-test-add-to-cart-extra="{{ form.vars.value.cartItem.variant.code|default('') }}"></div>

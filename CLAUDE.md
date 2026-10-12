@@ -58,6 +58,9 @@ the plugin has no table, CI runs `--skip-sync`.
   hiding the core form, Twig function `tmonier_quick_order_is_matrix`, fallback action
   `QuickOrderController::matrixAddAction`, `CatalogPriceCalculatorPass` (2.3 catalog calculator,
   2.2 fallback). Live component tests use `InteractsWithLiveComponents` with the test client.
+  No-JS results come back through the session (`MatrixOrderComponent::SESSION_RESULT_KEY`).
+  Our hooks inside hookable templates pass `_prefixes: []` (absolute names); the test app
+  registers test templates on them and switches guests off with `TMONIER_QUICK_ORDER_ALLOW_GUESTS`.
 - `Fixture/QuickOrderDemoCatalogFixture` (`tmonier_quick_order_demo_catalog`, idempotent).
 
 ## Rules

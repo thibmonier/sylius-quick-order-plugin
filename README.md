@@ -21,7 +21,7 @@ that add every line with a single order processing. Free and open source.
 | Know what will happen before it happens | **Preview** with a status per line: ready, insufficient stock (counting what is already in the cart), quantity above the cart line limit, quantity rule of the product, invalid quantity; for logged-in customers also unknown code, unavailable (product or variant disabled), not sold in this channel, no price. Then one **"Add N lines"** button. |
 | Never lose the failing lines | **Error report** (CSV, formulas neutralised) with the lines that were not added, ready to fix and upload again. |
 | Choose the behaviour | **Partial** (add the valid lines, report the others; default) or **all or nothing**. |
-| Order a whole size run from the product page | **Order matrix** replacing the core add to cart form on products with 1 or 2 options (configurable): a grid (rows = first option, columns = second option) or a list, one quantity per variant, prices with the Omnibus struck price when the channel shows it, an estimate of units and amount, one **"Add to cart"** for everything (same checks and single processing as the quick order). Unavailable, unpriced and out of stock variants are shown as not orderable, stock counts never. Works without JavaScript (plain form) and refreshes the cart widget with JavaScript (`sylius:shop:cart_changed`). |
+| Order a whole size run from the product page | **Order matrix** replacing the core add to cart form on products with 1 or 2 options (configurable): a grid (rows = first option, columns = second option) or a list, one quantity per variant, prices with the core rules (original price struck when higher, Omnibus "lowest price before the discount" line for discounted variants), an estimate of units and amount read like the cart reads quantities, one **"Add to cart"** for everything (same checks and single processing as the quick order). Unavailable, unpriced and out of stock variants are shown as not orderable, stock counts never. Works without JavaScript (plain form, result shown back on the product page) and refreshes the cart widget with JavaScript (`sylius:shop:cart_changed`). |
 | Buy the same things again | **Order again** button on the customer's order page and in the order list. Removed, disabled or unpriced variants are reported, the other lines are added at today's prices. |
 | Integrate an ERP, a punch-out or a SPA | **`POST /api/v2/shop/orders/{tokenValue}/bulk-items`** with the same checks and a status per line. |
 | Stay fast | Duplicates are merged, variants are loaded in **one query**, items are merged into existing cart lines like the core does, the order is **processed once and flushed once**, whatever the number of lines. |
@@ -106,7 +106,19 @@ tmonier_sylius_quick_order:
 Which products get the matrix: `excluded_products`, then `products`, then the checkbox
 attribute when it is set on the product, then the automatic rule. There is no field on
 Product. The core add to cart form is not rendered for matrix products (its hookable gets a
-wrapper template); everything else on the product page is unchanged.
+wrapper template); everything else on the product page is unchanged. What used to be shown
+inside the core form can register in the absolute hook `tmonier_quick_order.shop.product.add_to_cart`
+(context `product`, `form`): with `tmonier/sylius-tier-pricing-plugin` installed, its tier price
+table is registered there automatically (for the default variant of the form).
+
+The matrix is available to visitors like the core form (`allow_guests` only gates the quick
+order pages). Quantity inputs are text fields (`inputmode="numeric"`): an unreadable value such
+as `1,000` reaches the server and is reported on its cell instead of being emptied by the
+browser. The estimate uses the catalog price and the cart's reading of quantities (zero
+fractions, pack rounding with what is already in the cart, line limit); cart promotions, tier
+prices, taxes not included in prices and shipping only show in the cart. Without JavaScript,
+the form posts to `POST /{locale}/quick-order/products/{productId}/matrix` and comes back to the
+product page with the result on the matrix (or goes to the cart when every line was added).
 
 Quantities are whole numbers (`1000`); a zero fraction of one or two digits, as spreadsheets
 export it, is accepted (`5.0`, `12,00`). Thousands groups (`1,000`, `1.000`, `1 000`) are
@@ -200,7 +212,8 @@ Shop parts use [Twig Hooks](https://stack.sylius.com/twig-hooks/getting-started)
 | `sylius_shop.cart.index.content` → `tmonier_quick_order_link` | Link to the quick order page under the cart |
 | `sylius_shop.product.show.content.info.summary` → `tmonier_quick_order_matrix` (priority 90) | Order matrix (live component `tmonier_quick_order:product:matrix`), a sibling of the core form |
 | `sylius_shop.product.show.content.info.summary` → `add_to_cart` (props `template` overridden) | Core form, not rendered for matrix products |
-| `tmonier_quick_order.shop.product.matrix` (context: `product`, `matrix`) | Under the matrix, for other plugins (e.g. a container fill gauge listening to `sylius:shop:cart_changed`) |
+| `tmonier_quick_order.shop.product.add_to_cart` (absolute name, context: `product`, `form`) | For matrix products, in place of the core form: extras of the core form (the tier price table is added there when the tier pricing plugin is installed) |
+| `tmonier_quick_order.shop.product.matrix` (absolute name, context: `product`, `matrix`) | Under the matrix, for other plugins (e.g. a container fill gauge listening to `sylius:shop:cart_changed`) |
 | menu `sylius.menu.shop.account` → `tmonier_quick_order` | Link in the customer account menu |
 
 Templates can be overridden in `templates/bundles/TmonierSyliusQuickOrderPlugin/`.
@@ -227,8 +240,8 @@ lines and prices) is refused automatically: the plugin registers a bridge to tha
 - No XLSX import: paste from the spreadsheet or save it as CSV.
 - Matrix: 2 axes at most (a list beyond), not in product lists, no advanced keyboard
   navigation between cells yet (Tab works); the estimate uses catalog prices (tier prices and
-  cart promotions only show in the cart). With `tmonier/sylius-tier-pricing-plugin`, the tier
-  table of the core form is not shown on matrix products.
+  cart promotions only show in the cart); the tier price table shown with the matrix is the one
+  of the form's default variant.
 - No saved lists, no customer-specific prices: prices are those of the channel, as in the
   regular cart.
 - The cart is not locked while lines are added: two simultaneous changes of the same cart

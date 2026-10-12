@@ -40,3 +40,24 @@ services:
     Tests\Tmonier\SyliusQuickOrderPlugin\Cart\ResetNewCartOnRequestListener:
         arguments: ['@sylius.context.cart.new_shop_based']
         tags: [{ name: kernel.event_listener, event: kernel.request, priority: 4096 }]
+
+parameters:
+    # ShopMatrixTest switches guests off with this variable set to 0.
+    env(TMONIER_QUICK_ORDER_ALLOW_GUESTS): '1'
+
+tmonier_sylius_quick_order:
+    allow_guests: '%env(bool:TMONIER_QUICK_ORDER_ALLOW_GUESTS)%'
+    matrix:
+        # ShopMatrixTest: a 2-option product that keeps the core form.
+        excluded_products: ['QO_TEE_EXCLUDED']
+        products: ['QO_TEE_FORCED']
+
+sylius_twig_hooks:
+    hooks:
+        # ShopMatrixTest: the absolute hooks of the matrix page receive their context.
+        'tmonier_quick_order.shop.product.matrix':
+            test_extra:
+                template: 'matrix_extra.html.twig'
+        'tmonier_quick_order.shop.product.add_to_cart':
+            test_extra:
+                template: 'add_to_cart_extra.html.twig'

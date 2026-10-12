@@ -9,27 +9,33 @@ use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Order\Context\CartContextInterface;
+use Sylius\Component\Order\Context\CartNotFoundException;
 use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
 use Sylius\TwigHooks\LiveComponent\HookableLiveComponentTrait;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
+use Symfony\UX\LiveComponent\Attribute\PreReRender;
 use Symfony\UX\LiveComponent\ComponentToolsTrait;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 use Symfony\UX\TwigComponent\Attribute\PostMount;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineResult;
+use Tmonier\SyliusQuickOrderPlugin\Input\LineCollector;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\Matrix;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationCheckerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixBuilderInterface;
+use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixCell;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface;
+use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityRounding;
 
 /**
  * Order matrix of a product page: one quantity per variant, an estimate, one "add" for all
  * lines (bulk cart adder: one order processing). Emits "sylius:shop:cart_changed" so that the
  * cart widget and other cart components refresh. The template also works without JavaScript
- * (plain POST to tmonier_quick_order_shop_matrix_add).
+ * (plain POST to tmonier_quick_order_shop_matrix_add, which brings the result back here).
  */
 #[AsLiveComponent]
 final class MatrixOrderComponent
@@ -40,11 +46,14 @@ final class MatrixOrderComponent
 
     public const CART_CHANGED = 'sylius:shop:cart_changed';
 
+    /** Session key prefix of a result of the no-JavaScript route, shown once by the matrix. */
+    public const SESSION_RESULT_KEY = '_tmonier_quick_order.matrix_result.';
+
     #[LiveProp(hydrateWith: 'hydrateProduct', dehydrateWith: 'dehydrateProduct')]
     public ?ProductInterface $product = null;
 
-    /** @var array<mixed> quantities by variant id, as typed (validated on the server) */
-    #[LiveProp(writable: true)]
+    /** @var array<mixed> quantities by "v" + variant id, as typed (validated on the server) */
+    #[LiveProp(writable: true, onUpdated: 'onQuantitiesUpdated')]
     public array $quantities = [];
 
     #[LiveProp(writable: true)]
@@ -66,6 +75,9 @@ final class MatrixOrderComponent
         private readonly MatrixOrderHandlerInterface $orderHandler,
         private readonly string $defaultMode = 'partial',
         private readonly int $maxTotalQuantity = 20000,
+        private readonly ?RequestStack $requestStack = null,
+        private readonly int $quantityLimit = 9999,
+        private readonly QuantityRounding $quantityRounding = QuantityRounding::Reject,
     ) {
         $this->allOrNothing = BulkAddMode::AllOrNothing->value === $defaultMode;
     }
@@ -100,8 +112,27 @@ final class MatrixOrderComponent
         return $this->matrix = $this->matrixBuilder->build($this->product, $channel);
     }
 
-    /** Every orderable cell has a key from the start: the browser only sets existing model paths. */
+    /** The result of the no-JavaScript route, if any, is shown once (failed quantities kept). */
     #[PostMount]
+    public function restoreFallbackResult(): void
+    {
+        $session = $this->requestStack?->getMainRequest()?->hasSession() ? $this->requestStack->getMainRequest()->getSession() : null;
+        $key = self::SESSION_RESULT_KEY . (string) (\is_scalar($id = $this->product?->getId()) ? $id : '');
+        $stored = $session?->get($key);
+        if (\is_array($stored) && \is_array($stored['result'] ?? null) && \is_array($stored['quantities'] ?? null)) {
+            $session->remove($key);
+            $this->lastResult = $stored['result'];
+            $this->quantities = array_filter($stored['quantities'], static fn (mixed $quantity): bool => \is_string($quantity));
+            $this->allOrNothing = true === ($stored['all_or_nothing'] ?? false);
+        }
+        $this->initializeQuantities();
+    }
+
+    /**
+     * Every orderable cell has a key: the browser only sets existing model paths. Also before
+     * re-renders, for cells that became orderable since the mount.
+     */
+    #[PreReRender]
     public function initializeQuantities(): void
     {
         foreach ($this->getMatrix()->cells ?? [] as $cell) {
@@ -109,6 +140,33 @@ final class MatrixOrderComponent
                 $this->quantities[$cell->getKey()] ??= '';
             }
         }
+    }
+
+    /**
+     * A changed quantity drops the result line of its cell (its message quoted the old value);
+     * the banner goes when no failed line is left.
+     *
+     * @param array<mixed> $previous
+     */
+    public function onQuantitiesUpdated(array $previous): void
+    {
+        $result = $this->getResult();
+        if (null === $result) {
+            return;
+        }
+        $changed = [];
+        foreach ($this->getMatrix()->cells ?? [] as $cell) {
+            if (($previous[$cell->getKey()] ?? '') !== ($this->quantities[$cell->getKey()] ?? '')) {
+                $changed[] = $cell->code;
+            }
+        }
+        if ([] === $changed) {
+            return;
+        }
+
+        $lines = array_values(array_filter($result->lines, static fn (LineResult $line): bool => !\in_array($line->code, $changed, true)));
+        $remaining = new BulkAddResult($lines, $result->applied, $result->refusal, $result->mode);
+        $this->lastResult = [] === $remaining->getErrors() ? null : $remaining->toArray();
     }
 
     /** Typed quantity of a cell, as shown in its input. */
@@ -120,20 +178,23 @@ final class MatrixOrderComponent
     }
 
     /**
-     * Catalog prices x typed whole quantities of orderable cells. An estimate: cart promotions,
-     * tier prices, taxes and shipping are applied by the cart.
+     * Catalog prices x the quantities the cart would take, read like the bulk adder reads them
+     * (whole numbers, zero fractions, quantity rules with the cart content and rounding, cart
+     * line limit). An estimate: cart promotions, tier prices, taxes not included in prices and
+     * shipping are the cart's.
      *
      * @return array{units: int, total: int}
      */
     public function getEstimate(): array
     {
+        $inCart = $this->quantitiesInCart();
         $units = 0;
         $total = 0;
         foreach ($this->getMatrix()->cells ?? [] as $cell) {
-            $quantity = $this->getQuantity($cell->getKey());
-            if ($cell->isOrderable() && null !== $cell->price && 1 === preg_match('/^\d{1,9}$/', trim($quantity))) {
-                $units += (int) $quantity;
-                $total += (int) $quantity * $cell->price;
+            $quantity = $this->estimatedQuantity($cell, $inCart[$cell->variantId] ?? 0);
+            if (null !== $quantity && null !== $cell->price) {
+                $units += $quantity;
+                $total += $quantity * $cell->price;
             }
         }
 
@@ -168,6 +229,23 @@ final class MatrixOrderComponent
         return null;
     }
 
+    /**
+     * Cells whose line failed, for the list of links of the result banner.
+     *
+     * @return list<MatrixCell>
+     */
+    public function getFailedCells(): array
+    {
+        $failed = [];
+        foreach ($this->getMatrix()->cells ?? [] as $cell) {
+            if (true === $this->getLineResult($cell->code)?->status->isError()) {
+                $failed[] = $cell;
+            }
+        }
+
+        return $failed;
+    }
+
     #[LiveAction]
     public function add(): void
     {
@@ -183,19 +261,57 @@ final class MatrixOrderComponent
         $this->matrix = null;
 
         if ($result->applied) {
-            // Lines added are cleared; the others stay to be fixed.
-            foreach ($result->lines as $line) {
-                if ($line->addedQuantity > 0) {
-                    $cell = null;
-                    foreach ($this->getMatrix()->cells ?? [] as $candidate) {
-                        $cell = $candidate->code === $line->code ? $candidate : $cell;
-                    }
-                    if (null !== $cell) {
-                        $this->quantities[$cell->getKey()] = '';
-                    }
+            // Lines added are cleared (a second click must not add them again); the others stay.
+            foreach ($this->getMatrix()->cells ?? [] as $cell) {
+                if (($this->getLineResult($cell->code)->addedQuantity ?? 0) > 0) {
+                    $this->quantities[$cell->getKey()] = '';
                 }
             }
             $this->emit(self::CART_CHANGED, ['cartId' => $cart->getId()]);
         }
+    }
+
+    private function estimatedQuantity(MatrixCell $cell, int $inCart): ?int
+    {
+        $quantity = trim($this->getQuantity($cell->getKey()));
+        if (!$cell->isOrderable() || '' === $quantity) {
+            return null;
+        }
+        $quantity = LineCollector::parseQuantity($quantity);
+        if (null === $quantity) {
+            return null;
+        }
+
+        $constraint = $cell->getConstraint();
+        if (null !== $constraint && !$constraint->isSatisfiedBy($inCart + $quantity)) {
+            $rounded = QuantityRounding::RoundUp === $this->quantityRounding ? $constraint->roundUp($inCart + $quantity) : null;
+            if (null === $rounded) {
+                return null;
+            }
+            $quantity = $rounded - $inCart;
+        }
+
+        return $inCart + $quantity > $this->quantityLimit ? null : $quantity;
+    }
+
+    /** @return array<int, int> quantities already in the cart, by variant id */
+    private function quantitiesInCart(): array
+    {
+        try {
+            $cart = $this->cartContext->getCart();
+        } catch (CartNotFoundException) {
+            return [];
+        }
+
+        $quantities = [];
+        foreach ($cart->getItems() as $item) {
+            $variant = $item instanceof \Sylius\Component\Core\Model\OrderItemInterface ? $item->getVariant() : null;
+            $id = $variant?->getId();
+            if (\is_int($id)) {
+                $quantities[$id] = ($quantities[$id] ?? 0) + $item->getQuantity();
+            }
+        }
+
+        return $quantities;
     }
 }

@@ -14,6 +14,10 @@
   product only, bounded array). No-JavaScript fallback: `POST /{locale}/quick-order/products/{productId}/matrix`.
 - Hook `tmonier_quick_order.shop.product.matrix` under the matrix for other plugins.
 - New configuration node `matrix`. No change to the 1.0 public API.
+- Hook `tmonier_quick_order.shop.product.add_to_cart` (context `product`, `form`) for matrix
+  products; the tier price table of tmonier/sylius-tier-pricing-plugin is registered there when
+  that plugin is installed.
+- The quick order result and report pages honour `allow_guests`.
 
 ## 1.0.0
 

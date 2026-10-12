@@ -33,6 +33,8 @@ final class TestCatalog
 {
     public readonly string $suffix;
 
+    private int $matrices = 0;
+
     public function __construct(private readonly ContainerInterface $container)
     {
         $this->suffix = strtoupper(bin2hex(random_bytes(3)));
@@ -68,12 +70,17 @@ final class TestCatalog
      *
      * @return array<string, ProductVariantInterface> variants by code
      */
-    public function teeMatrix(): array
+    public function teeMatrix(?string $productCode = null): array
     {
         $channel = $this->channel();
-        $product = $this->product('QO_TEE_' . $this->suffix, 'Matrix T-shirt', $channel);
-        $size = $this->option('SIZE_' . $this->suffix, ['S', 'M', 'L', 'XL']);
-        $colour = $this->option('COLOUR_' . $this->suffix, ['RED', 'BLUE', 'BLACK']);
+        // The first matrix of a test uses the plain suffix (QO-<suffix>-S-RED...).
+        $unique = $this->suffix . (++$this->matrices > 1 ? 'N' . $this->matrices : '');
+        $product = $this->product('QO_TEE_' . $unique, 'Matrix T-shirt', $channel);
+        if (null !== $productCode) {
+            $product->setCode($productCode);
+        }
+        $size = $this->option('SIZE_' . $unique, ['S', 'M', 'L', 'XL']);
+        $colour = $this->option('COLOUR_' . $unique, ['RED', 'BLUE', 'BLACK']);
         $product->addOption($size);
         $product->addOption($colour);
 
@@ -82,7 +89,7 @@ final class TestCatalog
             foreach ($colour->getValues() as $colourValue) {
                 $sizeCode = (string) $sizeValue->getValue();
                 $colourCode = (string) $colourValue->getValue();
-                $code = sprintf('QO-%s-%s-%s', $this->suffix, $sizeCode, $colourCode);
+                $code = sprintf('QO-%s-%s-%s', $unique, $sizeCode, $colourCode);
                 $variant = $this->newVariant(
                     $product,
                     $code,

@@ -160,6 +160,11 @@ return static function (ContainerConfigurator $container): void {
             service('tmonier_quick_order.matrix.order_handler'),
             param('tmonier_quick_order.default_mode'),
             param('tmonier_quick_order.max_total_quantity'),
+            service('request_stack'),
+            param('sylius.order_item_quantity_modifier.limit'),
+            inline_service(QuantityRounding::class)
+                ->factory([QuantityRounding::class, 'from'])
+                ->args([param('tmonier_quick_order.quantity_rounding')]),
         ])
         ->call('setLiveResponder', [service('ux.live_component.live_responder')])
         ->tag('sylius.live_component.shop', [

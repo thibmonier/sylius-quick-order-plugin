@@ -17,7 +17,8 @@
                         {% set cell = matrix.grid[row.code][column.code]|default(null) %}
                         <td class="text-center{{ cell is not null and cell.status.value == 'disabled' ? ' bg-body-tertiary' }}">
                             {% if cell is null or cell.status.value == 'disabled' %}
-                                <span class="text-body-tertiary" aria-label="{{ 'tmonier_quick_order.ui.matrix.cell.disabled'|trans }}">&ndash;</span>
+                                <span class="text-body-tertiary" aria-hidden="true">&ndash;</span>
+                                <span class="visually-hidden">{{ 'tmonier_quick_order.ui.matrix.cell.disabled'|trans }}</span>
                             {% else %}
                                 {% include '@TmonierSyliusQuickOrderPlugin/shop/product/matrix/_input.html.twig' with {cell, label: row.label ~ ' / ' ~ column.label} %}
                             {% endif %}

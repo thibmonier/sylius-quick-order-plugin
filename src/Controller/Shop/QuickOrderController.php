@@ -29,6 +29,7 @@ use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationCheckerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Reorder\ReorderInputFactory;
 use Tmonier\SyliusQuickOrderPlugin\Report\CsvWriter;
+use Tmonier\SyliusQuickOrderPlugin\Twig\Component\MatrixOrderComponent;
 
 /**
  * Quick order page: paste or CSV upload, preview, "add N lines", result with a downloadable
@@ -154,7 +155,10 @@ final class QuickOrderController extends AbstractController
         return $this->addAndRedirect($request, $this->reorderInputFactory->create($order), BulkAddMode::Partial);
     }
 
-    /** The order matrix without JavaScript: a plain form post of the quantities. */
+    /**
+     * The order matrix without JavaScript: a plain form post of the quantities. Everything but
+     * a complete success goes back to the product page, where the matrix shows the result.
+     */
     public function matrixAddAction(Request $request, int $productId): Response
     {
         $product = $this->productRepository?->find($productId);
@@ -164,18 +168,46 @@ final class QuickOrderController extends AbstractController
             true !== $this->matrixActivationChecker?->isMatrixProduct($product)) {
             throw new NotFoundHttpException('Product not found.');
         }
+        $productPage = $this->generateUrl('sylius_shop_product_show', ['slug' => $product->getSlug()]) . '#tmonier-quick-order-matrix';
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
-            return $this->redirectWithError('tmonier_quick_order.invalid_csrf_token');
+            $this->addFlash('error', 'tmonier_quick_order.invalid_csrf_token');
+
+            return $this->redirect($productPage);
         }
 
-        $quantities = $request->request->all('quantities');
-        $mode = $request->request->getBoolean('all_or_nothing') ? BulkAddMode::AllOrNothing : BulkAddMode::Partial;
+        $quantities = array_filter($request->request->all('quantities'), static fn (mixed $quantity): bool => \is_string($quantity));
+        $allOrNothing = $request->request->getBoolean('all_or_nothing');
+        $result = $this->matrixOrderHandler->add($product, $quantities, $this->getCart(), $allOrNothing ? BulkAddMode::AllOrNothing : BulkAddMode::Partial);
+        if ($result->applied && !$result->hasErrors()) {
+            $this->addFlash('success', ['message' => 'tmonier_quick_order.lines_added', 'parameters' => ['%count%' => $result->countAdded()]]);
 
-        return $this->addAndRedirect($request, $this->matrixOrderHandler->input($product, $quantities), $mode);
+            return $this->redirectToRoute('sylius_shop_cart_summary');
+        }
+
+        // Added lines are cleared, the others are shown again with their message.
+        foreach ($product->getVariants() as $variant) {
+            if ($variant instanceof \Sylius\Component\Core\Model\ProductVariantInterface) {
+                foreach ($result->lines as $line) {
+                    if ($line->code === $variant->getCode() && $line->addedQuantity > 0) {
+                        unset($quantities[\Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandler::key($variant)]);
+                    }
+                }
+            }
+        }
+        $request->getSession()->set(MatrixOrderComponent::SESSION_RESULT_KEY . $productId, [
+            'result' => $result->toArray(),
+            'quantities' => $quantities,
+            'all_or_nothing' => $allOrNothing,
+        ]);
+
+        return $this->redirect($productPage);
     }
 
     public function resultAction(Request $request): Response
     {
+        if (null !== $denied = $this->denyGuests()) {
+            return $denied;
+        }
         $result = $this->loadResult($request);
         if (null === $result) {
             return $this->redirectToRoute('tmonier_quick_order_shop_index');
@@ -191,6 +223,9 @@ final class QuickOrderController extends AbstractController
 
     public function reportAction(Request $request): Response
     {
+        if (null !== $denied = $this->denyGuests()) {
+            return $denied;
+        }
         $result = $this->loadResult($request);
         if (null === $result) {
             throw new NotFoundHttpException('No quick order result.');

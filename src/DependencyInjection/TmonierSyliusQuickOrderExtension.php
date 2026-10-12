@@ -33,6 +33,20 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 
     public function prepend(ContainerBuilder $container): void
     {
+        // The tier price table of tmonier/sylius-tier-pricing-plugin is a child of the core add
+        // to cart form, which matrix products do not show: render it under the hidden form too.
+        $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : [];
+        if (\is_array($bundles) && isset($bundles['TmonierSyliusTierPricingPlugin'])) {
+            $container->prependExtensionConfig('sylius_twig_hooks', ['hooks' => [
+                'tmonier_quick_order.shop.product.add_to_cart' => [
+                    'tmonier_tier_pricing' => [
+                        'template' => '@TmonierSyliusTierPricingPlugin/shop/product/tier_prices.html.twig',
+                        'priority' => 50,
+                    ],
+                ],
+            ]]);
+        }
+
         if (self::hasApiPlatform($container)) {
             $container->prependExtensionConfig('api_platform', [
                 'mapping' => ['paths' => [\dirname(__DIR__) . '/Api/Resource']],

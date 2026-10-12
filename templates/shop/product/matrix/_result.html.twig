@@ -1,16 +1,24 @@
 {% set added = result.countAdded %}
+{% set failed = this.failedCells %}
 {% if result.refusal %}
     <div class="alert alert-danger" role="alert" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-result') }}>
-        {{ ('tmonier_quick_order.refusal.' ~ result.refusal)|trans({'%max%': this.maxTotalQuantity, '%lines%': 0}, 'flashes') }}
-    </div>
-{% elseif result.applied %}
-    <div class="alert {{ result.hasErrors ? 'alert-warning' : 'alert-success' }}" role="status" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-result') }}>
-        {{ 'tmonier_quick_order.ui.result_applied'|trans({'%count%': added}) }}
-        {% if result.hasErrors %}&middot; {{ 'tmonier_quick_order.ui.matrix.fix_errors'|trans }}{% endif %}
-        <a class="alert-link ms-2" href="{{ path('sylius_shop_cart_summary') }}">{{ 'sylius.ui.view_and_edit_cart'|trans }}</a>
+        {% if result.refusal == 'empty' %}
+            {{ 'tmonier_quick_order.ui.matrix.empty'|trans }}
+        {% else %}
+            {{ ('tmonier_quick_order.refusal.' ~ result.refusal)|trans({'%max%': this.maxTotalQuantity, '%lines%': 0}, 'flashes') }}
+        {% endif %}
     </div>
 {% else %}
-    <div class="alert alert-danger" role="alert" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-result') }}>
-        {{ 'tmonier_quick_order.ui.result_not_applied'|trans }} &middot; {{ 'tmonier_quick_order.ui.matrix.fix_errors'|trans }}
+    <div class="alert {{ not result.applied ? 'alert-danger' : (result.hasErrors ? 'alert-warning' : 'alert-success') }}" role="{{ result.hasErrors ? 'alert' : 'status' }}" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-result') }}>
+        {{ result.applied ? 'tmonier_quick_order.ui.result_applied'|trans({'%count%': added}) : 'tmonier_quick_order.ui.result_not_applied'|trans }}
+        {% if result.applied %}<a class="alert-link ms-2" href="{{ path('sylius_shop_cart_summary') }}">{{ 'sylius.ui.view_and_edit_cart'|trans }}</a>{% endif %}
+        {% if failed is not empty %}
+            <div class="mt-1">{{ 'tmonier_quick_order.ui.matrix.fix_errors'|trans }}</div>
+            <ul class="mb-0" {{ sylius_test_html_attribute('tmonier-quick-order-matrix-failed') }}>
+                {% for cell in failed %}
+                    <li><a class="alert-link" href="#tmonier-quick-order-matrix-{{ cell.variantId }}">{{ cell.label }}</a></li>
+                {% endfor %}
+            </ul>
+        {% endif %}
     </div>
 {% endif %}

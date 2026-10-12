@@ -15,8 +15,10 @@ use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraintProviderInterface;
 
 /**
  * Builds the matrix of a product for a channel. Prices come from the catalog price calculator
- * (CatalogPricesCalculatorInterface on Sylius 2.3, the variant price calculator on 2.2); the
- * struck price is the Omnibus "lowest price before discount" when the channel shows it.
+ * (CatalogPricesCalculatorInterface on Sylius 2.3, the variant price calculator on 2.2), with
+ * the core rules of the product page: the original price is struck when greater than the
+ * price, and the Omnibus "lowest price before discount" is given for discounted variants only
+ * (null when the channel does not show it).
  */
 final class MatrixBuilder implements MatrixBuilderInterface
 {
@@ -60,9 +62,6 @@ final class MatrixBuilder implements MatrixBuilderInterface
     {
         $rows = self::values($options[0]);
         $columns = self::values($options[1]);
-        if (\count($rows) * \count($columns) > $this->maxGridCells) {
-            return null;
-        }
 
         $grid = [];
         foreach ($variants as $index => $variant) {
@@ -84,6 +83,10 @@ final class MatrixBuilder implements MatrixBuilderInterface
         }
         $rows = array_values(array_filter($rows, static fn (array $value): bool => isset($grid[$value['code']])));
         $columns = array_values(array_filter($columns, static fn (array $value): bool => isset($usedColumns[$value['code']])));
+        // Option values are shared by all products: only the values this product uses count.
+        if (\count($rows) * \count($columns) > $this->maxGridCells) {
+            return null;
+        }
 
         return new Matrix(Matrix::LAYOUT_GRID, $cells, $options[0]->getName(), $options[1]->getName(), $rows, $columns, $grid);
     }
@@ -107,15 +110,16 @@ final class MatrixBuilder implements MatrixBuilderInterface
 
         $context = ['channel' => $channel];
         $price = $this->priceCalculator->calculate($variant, $context);
-        $lowest = $this->priceCalculator->calculateLowestPriceBeforeDiscount($variant, $context);
-        $struck = null !== $lowest && $lowest > $price ? $lowest : null;
+        $original = $this->priceCalculator->calculateOriginal($variant, $context);
+        $struck = $original > $price ? $original : null;
+        $lowest = null !== $struck ? $this->priceCalculator->calculateLowestPriceBeforeDiscount($variant, $context) : null;
         if (!$this->availabilityChecker->isStockAvailable($variant)) {
-            return new MatrixCell($variantId, $code, $label, CellStatus::OutOfStock, $price, $struck);
+            return new MatrixCell($variantId, $code, $label, CellStatus::OutOfStock, $price, $struck, lowestPriceBeforeDiscount: $lowest);
         }
 
         $constraint = $this->quantityConstraintProvider->getConstraint($variant, $channel);
 
-        return new MatrixCell($variantId, $code, $label, CellStatus::Orderable, $price, $struck, $constraint->minimum ?? 1, $constraint->multipleOf ?? 1);
+        return new MatrixCell($variantId, $code, $label, CellStatus::Orderable, $price, $struck, $constraint->minimum ?? 1, $constraint->multipleOf ?? 1, $constraint?->maximum, $lowest);
     }
 
     /** @return list<array{code: string, label: string}> */

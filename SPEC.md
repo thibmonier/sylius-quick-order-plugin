@@ -147,7 +147,8 @@ fill section 4 (the matrix embeds other plugins' gauges and must emit `cart_chan
 |---|---|---|
 | Hook `sylius_shop.product.show.content.info.summary`: `add_to_cart` (component `sylius_shop:product:add_to_cart_form`, priority 100) | Its template wraps everything in the core `<form>`: anything in `...summary.add_to_cart` would be a nested form | Matrix = sibling hookable (priority 90) |
 | Twig hooks config merges props of a hookable defined twice | Our `add_to_cart.props.template` replaces the template only (component and `product` prop kept; checked with `debug:config`) | Wrapper template renders an empty root for matrix products, the core template otherwise |
-| Hookable `condition` (expression) | Exists in twig-hooks 0.14; not used: needs a custom expression function and is not verified on 2.2 | Wrapper template instead |
+| Hookable `condition` (expression) | Exists in twig-hooks 0.14 (Sylius 2.3) but not in 0.9, required by Sylius 2.2 (checked on GitHub: no `HookableConditionChecker` in v0.9.x) | Wrapper template instead |
+| Hook names in hookable templates are auto-prefixed with the parent hookable (`HooksRuntime::renderHook`) | `{% hook 'a.b' %}` inside the matrix would become `sylius_shop...tmonier_quick_order_matrix.a.b` | Our extension hooks pass `_prefixes: []`: their names are absolute |
 | `CatalogPricesCalculatorInterface` (2.3, `sylius.calculator.product_variant_catalog_price`) | UPGRADE-2.3 item 4: catalog display prices, decorable independently of cart prices | `CatalogPriceCalculatorPass` aliases it, else `sylius.calculator.product_variant_price` (2.2) |
 | `calculateLowestPriceBeforeDiscount()` | Null unless the channel shows the Omnibus lowest price for this variant | Struck price when greater than the price |
 | `sylius:shop:cart_changed` (`Cart\FormComponent::SYLIUS_SHOP_CART_CHANGED`), listened to by `Cart\WidgetComponent` and `SummaryComponent` | Emitted by components | `MatrixOrderComponent::add()` emits it after an applied addition |
@@ -181,5 +182,21 @@ fill section 4 (the matrix embeds other plugins' gauges and must emit `cart_chan
 
 ### Not verified
 
-- Sylius 2.2 (UX Live 2.x, twig-hooks 0.12) and the tier pricing plugin installed together:
+- Sylius 2.2 (UX Live 2.x, twig-hooks 0.9) and the tier pricing plugin installed together:
   written against their APIs, run on Sylius 2.3 / UX 3.5 only.
+
+### Review round (2026-10-12)
+
+| Decision | Why |
+|---|---|
+| Struck price = original price when greater (core `sylius_has_discount`); Omnibus lowest price as the core "lowest price ... was" line, only for discounted variants | Same prices as the core block above the matrix. |
+| No-JS outcomes come back to the product page (result kept once in the session, failed quantities refilled); a complete success goes to the cart; `result` and `report` quick order pages honour `allow_guests` | A product page user never lands on the paste/CSV pages. |
+| Empty submit: "Enter a quantity for at least one variant." | The quick order message talks about pasting and files. |
+| Text inputs with `inputmode=numeric`; the estimate uses `LineCollector::parseQuantity()`, the cell's quantity rule with the cart content and rounding, and the cart line limit | The browser empties unreadable numbers; the estimate must match what the cart takes. |
+| Checkbox without `value` | UX Live sends a boolean only then; with a value it could not be unchecked. |
+| Keys for cells that become orderable after mount (`PreReRender`); a changed quantity drops its old message (`onUpdated`) | Model paths must exist; messages must not quote old values. |
+| Grid limit counts the option values the product uses | Option values are shared across products. |
+| Empty matrix: "Out of stock" only when stock is the reason, else "Not available" | Unpriced or disabled products are not a stock problem. |
+| Accessibility: hidden text for unavailable cells, `aria-invalid`, pack hint and error in `aria-describedby`, failed cells listed as links, explained "all or nothing" | Screen reader and keyboard users get the same information. |
+| Tier price table: absolute hook `tmonier_quick_order.shop.product.add_to_cart` (context `product`, `form`) rendered by the hidden core form, tier plugin template registered there by our extension when its bundle is installed | The table no longer disappears; no change in the tier pricing plugin. |
+
