@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-10-12)
 
 - Order matrix on product pages: live component `tmonier_quick_order:product:matrix` in
   `sylius_shop.product.show.content.info.summary`, replacing the core add to cart form on
