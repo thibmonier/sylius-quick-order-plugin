@@ -16,7 +16,7 @@ that add every line with a single order processing. Free and open source.
 | Need | What the plugin does |
 |---|---|
 | Order from a list of references | **Quick order page** (`/{locale}/quick-order`): paste `CODE;qty`, `CODE,qty` or `CODE<TAB>qty` lines (a copy from a spreadsheet works as is), or `CODE qty` (space before the quantity only, codes may contain spaces). A header line (`SKU`, `code`...) is skipped. |
-| Import a file | **CSV upload**: UTF-8 with or without BOM, or Windows-1252; `,`, `;` or TAB detected; LF, CRLF or CR line endings; `SKU` / `QTY` header columns in any order (also `code`, `quantity`, `référence`, `Menge`, `Anzahl`...); no header = code then quantity. A header whose columns are not recognised refuses the file instead of guessing. A **CSV template** can be downloaded. |
+| Import a file | **CSV upload**: UTF-8 with or without BOM, or Windows-1252; `,`, `;` or TAB detected; LF, CRLF or CR line endings; `SKU` / `QTY` header columns in any order (also `code`, `quantity`, `référence`, `Menge`, `Anzahl`...); a header with other names = code then quantity; no header = code then quantity. A named code column without any quantity column refuses the file instead of guessing. A **CSV template** can be downloaded. |
 | Know what will happen before it happens | **Preview** with a status per line: ready, insufficient stock (counting what is already in the cart), quantity above the cart line limit, quantity rule of the product, invalid quantity; for logged-in customers also unknown code, unavailable (product or variant disabled), not sold in this channel, no price. Then one **"Add N lines"** button. |
 | Never lose the failing lines | **Error report** (CSV, formulas neutralised) with the lines that were not added, ready to fix and upload again. |
 | Choose the behaviour | **Partial** (add the valid lines, report the others; default) or **all or nothing**. |
@@ -83,7 +83,7 @@ The API operation is registered automatically when API Platform is enabled.
 # config/packages/tmonier_sylius_quick_order.yaml
 tmonier_sylius_quick_order:
     max_lines: 200              # per paste, CSV file, reorder or API call
-    max_total_quantity: 10000   # units per paste, CSV file, reorder or API call
+    max_total_quantity: 20000   # units per paste, CSV file, reorder or API call
     max_file_size: 1048576      # bytes, CSV file and pasted text
     expose_available_stock: false  # true: "insufficient stock" lines tell how many units are left
     default_mode: partial       # or all_or_nothing
@@ -91,9 +91,15 @@ tmonier_sylius_quick_order:
     quantity_rounding: reject   # or round_up (see "Pack sizes" below)
 ```
 
-Quantities are plain whole numbers (`1000`): `1,000`, `1.000`, `1 000` or `12.0` are reported
-as invalid rather than guessed, since separators mean different things in different
-countries.
+Quantities are whole numbers (`1000`); a zero fraction of one or two digits, as spreadsheets
+export it, is accepted (`5.0`, `12,00`). Thousands groups (`1,000`, `1.000`, `1 000`) are
+reported as *ambiguous* rather than guessed, since separators mean different things in
+different countries; other fractions (`2.5`) are invalid. In a pasted line, cells after the
+quantity (descriptions, prices) are ignored, except `CODE,1,000`-like lines with commas (a
+1-3 digit quantity followed by exactly 3 digits), refused as ambiguous: use `;` or a tab.
+In a CSV file, every row needs a quantity (an empty cell is an error, while a pasted line
+without quantity means 1), and a row with more cells than the header whose quantity is
+followed by 3 digits is refused as ambiguous.
 
 What visitors see is limited on purpose: stock levels are not shown (unless
 `expose_available_stock`), product names only appear for products sold in the channel, and
@@ -101,8 +107,10 @@ for visitors without an account (carts without a shop user) unknown, disabled, u
 other-channel codes all read *not available*, so the page cannot be used to discover
 unpublished products. Logged-in customers get the detailed status.
 
-The previewed lines stay in the session; the "add" form only carries a one-time token, so
-what is added is exactly what was previewed (and checked again).
+The previewed lines stay in the session (the last 5 previews, so several tabs work); each
+"add" form only carries a one-time token, so what is added is exactly what was previewed
+(and checked again). Adding the same preview twice (back button) shows the page again with
+the pasted text.
 
 The maximum quantity of a cart line is the Sylius parameter
 `sylius.order_item_quantity_modifier.limit` (9999 by default). Sylius silently caps a line

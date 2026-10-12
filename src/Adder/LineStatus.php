@@ -22,6 +22,10 @@ enum LineStatus: string
 
     case InvalidLine = 'invalid_line';
     case InvalidQuantity = 'invalid_quantity';
+
+    /** A thousands group or a "code,qty,price" line: the quantity cannot be read safely. */
+    case AmbiguousQuantity = 'ambiguous_quantity';
+
     case UnknownCode = 'unknown_code';
     case Disabled = 'disabled';
     case NotInChannel = 'not_in_channel';

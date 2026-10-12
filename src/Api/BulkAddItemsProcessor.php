@@ -14,6 +14,7 @@ use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
+use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 use Tmonier\SyliusQuickOrderPlugin\Api\Resource\BulkAddItemsToCart;
@@ -30,6 +31,7 @@ final class BulkAddItemsProcessor implements ProcessorInterface
         private readonly string $apiShopRoute,
         private readonly string $defaultMode,
         private readonly int $maxLines,
+        private readonly int $maxTotalQuantity = 20000,
     ) {
     }
 
@@ -62,7 +64,9 @@ final class BulkAddItemsProcessor implements ProcessorInterface
         $result = $this->bulkCartAdder->add($cart, $collector->getInput(), $mode);
         // Whole-request refusals (input, locked cart, pre_bulk_add listeners) are client errors.
         if (null !== $result->refusal) {
-            throw new UnprocessableEntityHttpException(\sprintf('Refused: %s.', $result->refusal));
+            throw new UnprocessableEntityHttpException(BulkAddResult::REFUSED_TOO_MANY_UNITS === $result->refusal
+                ? \sprintf('Refused: %s (more than %d units in one request; the limit is the tmonier_sylius_quick_order.max_total_quantity setting).', $result->refusal, $this->maxTotalQuantity)
+                : \sprintf('Refused: %s.', $result->refusal));
         }
 
         return BulkAddItemsResult::fromResult($this->apiShopRoute . '/orders/' . $cart->getTokenValue(), $result);

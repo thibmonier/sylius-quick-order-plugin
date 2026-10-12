@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Input;
 
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
+use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 
 /**
  * Pasted text: one "CODE;qty", "CODE,qty" or "CODE<TAB>qty" (spreadsheet copy) per line. A space
@@ -42,13 +43,18 @@ final class PasteParser
             if ('' === trim($line, " \t\u{A0}\u{FEFF}")) {
                 continue;
             }
-            [$code, $quantity] = self::split($line);
+            [$code, $quantity, $ambiguous] = self::split($line);
             if ($first && self::isHeader($code, $quantity)) {
                 $first = false;
 
                 continue;
             }
             $first = false;
+            if ($ambiguous) {
+                $collector->addInvalid($lineNumber, $code, (string) $quantity, LineStatus::AmbiguousQuantity);
+
+                continue;
+            }
             $collector->add($lineNumber, $code, $quantity);
         }
 
@@ -61,25 +67,29 @@ final class PasteParser
             (null === $quantity || 1 !== preg_match('/^\s*\d/', $quantity));
     }
 
-    /** @return array{0: string, 1: string|null} */
+    /**
+     * Extra cells after the quantity (descriptions, prices) are ignored, except "ABC,1,000"
+     * with commas: a 1-3 digit quantity followed by exactly 3 digits may be "1,000" as well
+     * as "1" and a price of "000"; such lines are refused as ambiguous (use ";" or a tab).
+     *
+     * @return array{0: string, 1: string|null, 2: bool} code, quantity, ambiguous
+     */
     private static function split(string $line): array
     {
         foreach (["\t", ';', ','] as $separator) {
             if (str_contains($line, $separator)) {
-                $cells = explode($separator, $line, 3);
-                // "ABC,1,000": a thousands group, not an extra column; refused as a quantity.
-                if (',' === $separator && isset($cells[1], $cells[2]) && 1 === preg_match('/^\d{3}(\D|$)/', trim($cells[2]))) {
-                    return [$cells[0], $cells[1] . ',' . $cells[2]];
-                }
+                $cells = explode($separator, $line);
+                $ambiguous = ',' === $separator && \count($cells) >= 3 &&
+                    1 === preg_match('/^\d{1,3}$/', trim($cells[1])) && 1 === preg_match('/^\d{3}$/', trim($cells[2]));
 
-                return [$cells[0], $cells[1] ?? null];
+                return [$cells[0], $ambiguous ? trim($cells[1]) . ',' . trim($cells[2]) : ($cells[1] ?? null), $ambiguous];
             }
         }
 
         if (1 === preg_match('/^(.*\S)\s+([-+]?\d+(?:[.,]\d+)?)\s*$/u', $line, $matches)) {
-            return [$matches[1], $matches[2]];
+            return [$matches[1], $matches[2], false];
         }
 
-        return [$line, null];
+        return [$line, null, false];
     }
 }

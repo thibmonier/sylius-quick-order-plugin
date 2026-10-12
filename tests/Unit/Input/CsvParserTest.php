@@ -33,11 +33,35 @@ final class CsvParserTest extends TestCase
         self::assertSame([['ABC-1', 4, [1]], ['ABC-2', 1, [2]]], self::summary($input));
     }
 
-    public function testHeaderWithoutQuantityColumnMeansOneEach(): void
+    public function testACodeColumnWithoutQuantityColumnRefusesTheFile(): void
     {
-        $input = $this->parse("sku\nABC-1\nABC-2\n");
+        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("sku\nABC-1\nABC-2\n")->rejection);
+        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("Description;SKU;Notes\nShirt;ABC;x\n")->rejection);
+    }
 
-        self::assertSame([['ABC-1', 1, [2]], ['ABC-2', 1, [3]]], self::summary($input));
+    public function testAnEmptyQuantityIsAnErrorInAFile(): void
+    {
+        $input = $this->parse("SKU,QTY\nABC,\nDEF,2\nGHI\n");
+
+        self::assertSame([['DEF', 2]], array_map(static fn ($line): array => [$line->code, $line->quantity], $input->lines));
+        self::assertSame([[2, LineStatus::InvalidQuantity], [4, LineStatus::InvalidQuantity]], array_map(static fn ($line): array => [$line->lineNumber, $line->status], $input->invalidLines));
+    }
+
+    public function testTheHeaderIsTheFirstNonBlankRow(): void
+    {
+        self::assertSame([['ABC', 3, [4]]], self::summary($this->parse("\n\nQTY;SKU\n3;ABC\n")));
+    }
+
+    public function testAnUnquotedThousandsGroupIsNeverReadAsTheQuantity(): void
+    {
+        $input = $this->parse("SKU,QTY\nABC,1,000\nDEF,2\n");
+
+        self::assertSame([['DEF', 2]], array_map(static fn ($line): array => [$line->code, $line->quantity], $input->lines));
+        self::assertSame(LineStatus::AmbiguousQuantity, $input->invalidLines[0]->status);
+        // Without header, code then quantity: the same.
+        self::assertSame(LineStatus::AmbiguousQuantity, $this->parse("ABC,1,000\n")->invalidLines[0]->status);
+        // A third column announced by the header is a column, not a group.
+        self::assertSame([['ABC', 1, [2]]], self::summary($this->parse("SKU,QTY,Price\nABC,1,000\n")));
     }
 
     public function testQuotedCodesWithSeparatorsAndBlankRows(): void
@@ -54,12 +78,11 @@ final class CsvParserTest extends TestCase
         self::assertSame([['ABC', 12, [2]]], self::summary($input));
     }
 
-    public function testAnUnrecognisedQuantityColumnRefusesTheFile(): void
+    public function testHeadersWithUnknownNamesUsePositionalColumns(): void
     {
-        // Never "1 of everything" because the quantity header has an unexpected name.
-        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("SKU;Pieces\nABC;12\n")->rejection);
-        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("Item no;Pieces\nABC;12\n")->rejection);
-        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("Pieces;QTY\nABC;12\n")->rejection);
+        foreach (["Product;Quantity\n", "EAN;Units\n", "Bestellnummer;Menge\n", "SKU;Pieces\n", "Item no;Pieces\n", "Pieces;QTY\n"] as $header) {
+            self::assertSame([['ABC', 12, [2]]], self::summary($this->parse($header . "ABC;12\n")), $header);
+        }
         self::assertSame([['ABC', 12, [2]]], self::summary($this->parse("Anzahl;Artikelnummer\n12;ABC\n")));
     }
 
@@ -72,7 +95,7 @@ final class CsvParserTest extends TestCase
     {
         $input = $this->parse("SKU,QTY\nABC,\"1,000\"\n");
 
-        self::assertSame(LineStatus::InvalidQuantity, $input->invalidLines[0]->status);
+        self::assertSame(LineStatus::AmbiguousQuantity, $input->invalidLines[0]->status);
     }
 
     public function testWindows1252Codes(): void

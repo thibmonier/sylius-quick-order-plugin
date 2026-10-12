@@ -100,6 +100,7 @@ return static function (ContainerConfigurator $container): void {
             param('tmonier_quick_order.default_mode'),
             param('tmonier_quick_order.max_lines'),
             param('tmonier_quick_order.max_file_size'),
+            param('tmonier_quick_order.max_total_quantity'),
         ])
         ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
         ->tag('controller.service_arguments')

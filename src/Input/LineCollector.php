@@ -10,8 +10,10 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 /**
  * Validates raw lines (paste, CSV, reorder, API) into a QuickOrderInput. Lines with exactly the
  * same code are merged; codes differing in case are merged later, once resolved to the same
- * variant. Quantities are plain whole numbers: "1,000", "1.000" or "12.5" are refused rather
- * than guessed. An empty quantity means 1.
+ * variant. Quantities are whole numbers, optionally with a zero fraction of one or two digits
+ * as spreadsheets export them ("12.0", "12,00"). Thousands groups ("1,000", "1.000", "1 000")
+ * are ambiguous and other fractions invalid: both refused, never guessed. An empty quantity
+ * means 1 unless the caller requires one (CSV).
  */
 final class LineCollector
 {
@@ -37,7 +39,7 @@ final class LineCollector
         return $this->count > $this->maxLines;
     }
 
-    public function add(int $lineNumber, string $code, int|string|null $quantity): void
+    public function add(int $lineNumber, string $code, int|string|null $quantity, bool $quantityRequired = false): void
     {
         if (++$this->count > $this->maxLines) {
             return;
@@ -51,9 +53,10 @@ final class LineCollector
             return;
         }
 
-        $parsedQuantity = self::parseQuantity($quantity);
+        $parsedQuantity = $quantityRequired && '' === $rawQuantity ? null : self::parseQuantity($quantity);
         if (null === $parsedQuantity) {
-            $this->invalidLines[] = new InvalidLine($lineNumber, $code, mb_substr($rawQuantity, 0, 32), LineStatus::InvalidQuantity);
+            $status = \is_string($quantity) && self::isAmbiguous($quantity) ? LineStatus::AmbiguousQuantity : LineStatus::InvalidQuantity;
+            $this->invalidLines[] = new InvalidLine($lineNumber, $code, mb_substr($rawQuantity, 0, 32), $status);
 
             return;
         }
@@ -95,13 +98,19 @@ final class LineCollector
         if ('' === $quantity) {
             return 1;
         }
-        // Plain whole numbers only: separators are ambiguous ("1.000" is 1000 in German, 1 in English).
-        if (1 !== preg_match('/^0*(\d{1,9})$/', $quantity, $matches)) {
+        // A zero fraction of 1-2 digits is a spreadsheet decimal; "1.000" (3 digits) is a thousands group.
+        if (1 !== preg_match('/^0*(\d{1,9})(?:[.,]0{1,2})?$/', $quantity, $matches)) {
             return null;
         }
         $value = (int) $matches[1];
 
         return $value > 0 ? $value : null;
+    }
+
+    /** Thousands groups: "1,000", "1.000", "1 000", "12.345.678" mean different numbers in different countries. */
+    public static function isAmbiguous(string $quantity): bool
+    {
+        return 1 === preg_match('/^\d{1,3}(?:([.,\x{A0}\x{202F} \'])\d{3})+$/u', self::clean($quantity));
     }
 
     public static function clean(string $value): string

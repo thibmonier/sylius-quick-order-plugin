@@ -79,7 +79,7 @@ final class QuickOrderInput
                 return $invalid;
             }
             $status = LineStatus::tryFrom($line[3]);
-            if (!\in_array($status, [LineStatus::InvalidLine, LineStatus::InvalidQuantity, LineStatus::UnknownCode], true)) {
+            if (!\in_array($status, [LineStatus::InvalidLine, LineStatus::InvalidQuantity, LineStatus::AmbiguousQuantity, LineStatus::UnknownCode], true)) {
                 return $invalid;
             }
             ++$lineNumberCount;

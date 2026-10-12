@@ -115,7 +115,7 @@ final class ApiBulkAddTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertIsArray($data['lines']);
-        self::assertSame(['invalid_quantity', 'invalid_quantity', 'invalid_quantity'], array_column($data['lines'], 'status'));
+        self::assertSame(['invalid_quantity', 'invalid_quantity', 'ambiguous_quantity'], array_column($data['lines'], 'status'));
     }
 
     public function testTooManyUnitsAndListenerRefusalsAre422(): void
@@ -123,10 +123,11 @@ final class ApiBulkAddTest extends WebTestCase
         $cart = $this->catalog->cart();
         $a = (string) $this->catalog->variant('QO-A-' . $this->catalog->suffix)->getCode();
         $b = (string) $this->catalog->variant('QO-B-' . $this->catalog->suffix)->getCode();
+        $c = (string) $this->catalog->variant('QO-C-' . $this->catalog->suffix)->getCode();
 
-        $this->bulkAdd($cart, ['lines' => [['code' => $a, 'quantity' => 6000], ['code' => $b, 'quantity' => 4001]]]);
+        $this->bulkAdd($cart, ['lines' => [['code' => $a, 'quantity' => 7000], ['code' => $b, 'quantity' => 7000], ['code' => $c, 'quantity' => 6001]]]);
         self::assertResponseStatusCodeSame(422);
-        self::assertStringContainsString('too_many_units', (string) $this->client->getResponse()->getContent());
+        self::assertStringContainsString('too_many_units (more than 20000 units', (string) $this->client->getResponse()->getContent());
 
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);

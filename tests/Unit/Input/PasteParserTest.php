@@ -74,24 +74,47 @@ final class PasteParserTest extends TestCase
         self::assertSame([['ABC-1', 5, [1, 3]], ['XYZ', 1, [2]], ['abc-1', 4, [4]]], array_map(static fn ($line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
     }
 
-    /** @return iterable<string, array{string}> */
-    public static function ambiguousQuantities(): iterable
+    /** @return iterable<string, array{string, int}> */
+    public static function spreadsheetDecimals(): iterable
     {
-        yield 'German thousands' => ['ABC;1.000'];
-        yield 'English thousands' => ['ABC;"1,000"'];
-        yield 'English thousands, comma separator' => ['ABC,1,000'];
-        yield 'space thousands' => ["ABC\t1 000"];
-        yield 'decimal zero' => ['ABC;12.0'];
-        yield 'decimal comma' => ['ABC;12,00'];
+        yield 'one zero' => ['ABC;5.0', 5];
+        yield 'two zeros, comma' => ['ABC;12,00', 12];
+        yield 'two zeros, tab' => ["ABC\t10.00", 10];
     }
 
-    #[DataProvider('ambiguousQuantities')]
-    public function testQuantitiesWithSeparatorsAreRefusedNotGuessed(string $text): void
+    #[DataProvider('spreadsheetDecimals')]
+    public function testZeroFractionsAreWholeNumbers(string $text, int $quantity): void
+    {
+        self::assertSame($quantity, (new PasteParser(200))->parse($text)->lines[0]->quantity);
+    }
+
+    /** @return iterable<string, array{string, LineStatus}> */
+    public static function unreadableQuantities(): iterable
+    {
+        yield 'German thousands' => ['ABC;1.000', LineStatus::AmbiguousQuantity];
+        yield 'English thousands, quoted' => ['ABC;"1,000"', LineStatus::AmbiguousQuantity];
+        yield 'English thousands, comma separator' => ['ABC,1,000', LineStatus::AmbiguousQuantity];
+        yield 'code, quantity, 3-digit price' => ['ABC-1,2,100', LineStatus::AmbiguousQuantity];
+        yield 'space thousands' => ["ABC\t1 000", LineStatus::AmbiguousQuantity];
+        yield 'millions' => ['ABC;1.000.000', LineStatus::AmbiguousQuantity];
+        yield 'non-zero fraction' => ['ABC;12.5', LineStatus::InvalidQuantity];
+        yield 'three zeros fraction is a group' => ['ABC;12,000', LineStatus::AmbiguousQuantity];
+    }
+
+    #[DataProvider('unreadableQuantities')]
+    public function testQuantitiesWithSeparatorsAreRefusedNotGuessed(string $text, LineStatus $status): void
     {
         $input = (new PasteParser(200))->parse($text);
 
         self::assertSame([], $input->lines);
-        self::assertSame(LineStatus::InvalidQuantity, $input->invalidLines[0]->status);
+        self::assertSame($status, $input->invalidLines[0]->status);
+    }
+
+    public function testExtraCellsAfterTheQuantityAreIgnored(): void
+    {
+        $input = (new PasteParser(200))->parse("ABC-1,2,19.90\nABC-2,3,Blue shirt\nABC-3;4;100");
+
+        self::assertSame([['ABC-1', 2], ['ABC-2', 3], ['ABC-3', 4]], array_map(static fn ($line): array => [$line->code, $line->quantity], $input->lines));
     }
 
     public function testCrOnlyLineEndings(): void

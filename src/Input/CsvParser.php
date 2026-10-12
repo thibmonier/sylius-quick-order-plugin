@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Input;
 
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
+use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 
 /**
  * CSV upload: UTF-8 (with or without BOM) or Windows-1252, separator detected among ",", ";"
  * and TAB on the first line. Optional header row: SKU / code and QTY / quantity columns, in
- * any order (cells read as UTF-8 or Windows-1252); a header whose columns are not recognised
- * refuses the file. Without a header, the first column is the code and the second the
- * quantity. Line endings: LF, CRLF or CR.
+ * any order (cells read as UTF-8 or Windows-1252); a header with unknown names means code
+ * first, then quantity; a named code column without quantity column refuses the file.
+ * Without a header, the first column is the code and the second the quantity. Every row needs
+ * a quantity. Line endings: LF, CRLF or CR.
  */
 final class CsvParser
 {
@@ -59,13 +61,17 @@ final class CsvParser
         $collector = new LineCollector($this->maxLines);
         $codeColumn = 0;
         $quantityColumn = 1;
+        // Cells of the layout (header or code + quantity): more cells may be a split "1,000".
+        $width = 2;
         $lineNumber = 0;
+        $first = true;
         while (!$collector->isFull() && false !== ($row = fgetcsv($handle, null, $separator, '"', ''))) {
             ++$lineNumber;
             if ([null] === $row || '' === trim(implode('', array_map('strval', $row)))) {
                 continue;
             }
-            if (1 === $lineNumber) {
+            if ($first) {
+                $first = false;
                 $columns = self::headerColumns($row);
                 if (false === $columns) {
                     fclose($handle);
@@ -74,11 +80,23 @@ final class CsvParser
                 }
                 if (null !== $columns) {
                     [$codeColumn, $quantityColumn] = $columns;
+                    $width = \count($row);
 
                     continue;
                 }
             }
-            $collector->add($lineNumber, (string) ($row[$codeColumn] ?? ''), null === $quantityColumn ? null : ($row[$quantityColumn] ?? null));
+
+            $code = (string) ($row[$codeColumn] ?? '');
+            $quantity = (string) ($row[$quantityColumn] ?? '');
+            $next = trim((string) ($row[$quantityColumn + 1] ?? ''));
+            if (\count($row) > $width && 1 === preg_match('/^\d{1,3}$/', trim($quantity)) && 1 === preg_match('/^\d{3}$/', $next)) {
+                // "ABC,1,000" unquoted: 1000 or 1? Never guess.
+                $collector->addInvalid($lineNumber, $code, trim($quantity) . $separator . $next, LineStatus::AmbiguousQuantity);
+
+                continue;
+            }
+            // In a file, an empty quantity is a mistake, not "1".
+            $collector->add($lineNumber, $code, $quantity, true);
         }
         fclose($handle);
 
@@ -95,23 +113,24 @@ final class CsvParser
     }
 
     /**
-     * Columns of a header row; null when the row is data; false when it is a header whose code
-     * or quantity column is not recognised (better refuse the file than add 1 of everything).
+     * Columns of the first non-blank row when it is a header, null when it is data, false when
+     * the file cannot be read safely (a code column is named but no quantity column can be
+     * found).
+     *
+     * Named columns win (any order, extra columns ignored). Otherwise a row whose second cell
+     * is not a quantity is a header with unknown names ("Product;Quantity", "EAN;Units"): the
+     * columns are positional, code first, then quantity.
      *
      * @param list<string|null> $row
      *
-     * @return array{0: int, 1: int|null}|false|null
+     * @return array{0: int, 1: int}|false|null
      */
     private static function headerColumns(array $row): array|false|null
     {
         $codeColumn = null;
         $quantityColumn = null;
-        $filled = 0;
         foreach ($row as $index => $cell) {
             $name = mb_strtolower(LineCollector::clean((string) $cell));
-            if ('' !== $name) {
-                ++$filled;
-            }
             if (null === $codeColumn && \in_array($name, self::CODE_HEADERS, true)) {
                 $codeColumn = $index;
             } elseif (null === $quantityColumn && \in_array($name, self::QUANTITY_HEADERS, true)) {
@@ -119,16 +138,22 @@ final class CsvParser
             }
         }
 
-        if (null === $codeColumn && null === $quantityColumn) {
-            // A header made of unknown names: the second cell is not a quantity.
-            $second = LineCollector::clean((string) ($row[1] ?? ''));
-
-            return $filled > 1 && null === LineCollector::parseQuantity($second) && 1 !== preg_match('/^[-+]?\d/', $second) ? false : null;
+        if (null !== $codeColumn && null !== $quantityColumn) {
+            return [$codeColumn, $quantityColumn];
         }
-        if (null === $codeColumn || (null === $quantityColumn && $filled > 1)) {
-            return false;
+        if (null !== $quantityColumn) {
+            return [0 === $quantityColumn ? 1 : 0, $quantityColumn];
+        }
+        if (null !== $codeColumn) {
+            // The only other column, if there is exactly one, holds the quantities.
+            $others = array_values(array_diff(array_keys($row), [$codeColumn]));
+
+            return 1 === \count($others) ? [$codeColumn, $others[0]] : false;
         }
 
-        return [$codeColumn, $quantityColumn];
+        $second = LineCollector::clean((string) ($row[1] ?? ''));
+        $isQuantity = '' === $second || null !== LineCollector::parseQuantity($second) || LineCollector::isAmbiguous($second) || 1 === preg_match('/^[-+]?\d/', $second);
+
+        return $isQuantity ? null : [0, 1];
     }
 }

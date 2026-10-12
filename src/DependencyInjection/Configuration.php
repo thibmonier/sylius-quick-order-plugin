@@ -25,7 +25,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->integerNode('max_total_quantity')
                     ->info('Maximum number of units added by one paste, CSV file, reorder or API call.')
-                    ->defaultValue(10000)
+                    ->defaultValue(20000)
                     ->min(1)
                 ->end()
                 ->booleanNode('expose_available_stock')

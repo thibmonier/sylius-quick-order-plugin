@@ -46,17 +46,20 @@ final class ShopQuickOrderTest extends WebTestCase
     {
         $a = $this->catalog->variant('QO-A-' . $this->catalog->suffix);
         $this->catalog->variant('QO-OFF-' . $this->catalog->suffix, enabled: false);
+        $this->catalog->variant('QO-UNPRICED-' . $this->catalog->suffix, null);
 
-        $crawler = $this->preview(sprintf("%s;2\nQO-OFF-%s;1\n=HYPERLINK(\"http://evil\");1\n%s;zero", $a->getCode(), $this->catalog->suffix, $a->getCode()));
-        // Visitors cannot tell a disabled product from an unknown code.
-        self::assertSame(['valid', 'not_available', 'not_available', 'invalid_quantity'], $this->statuses($crawler));
-        self::assertStringNotContainsString('Product QO-OFF', $crawler->filter('[data-test-tmonier-quick-order-preview-result]')->text());
+        $crawler = $this->preview(sprintf("%s;2\nQO-OFF-%s;1\n=HYPERLINK(\"http://evil\");1\n%s;zero\nQO-UNPRICED-%s;1", $a->getCode(), $this->catalog->suffix, $a->getCode(), $this->catalog->suffix));
+        // Visitors cannot tell a disabled or unpriced product from an unknown code.
+        self::assertSame(['valid', 'not_available', 'not_available', 'invalid_quantity', 'not_available'], $this->statuses($crawler));
+        $preview = $crawler->filter('[data-test-tmonier-quick-order-preview-result]')->text();
+        self::assertStringNotContainsString('Product QO-OFF', $preview);
+        self::assertStringNotContainsString('Product QO-UNPRICED', $preview);
         self::assertSelectorExists('[data-test-tmonier-quick-order-report]');
 
         $this->client->submit($crawler->filter('[data-test-tmonier-quick-order-add]')->form());
         self::assertResponseRedirects($this->url('/quick-order/result'));
         $crawler = $this->client->followRedirect();
-        self::assertSame(['added', 'not_available', 'not_available', 'invalid_quantity'], $this->statuses($crawler));
+        self::assertSame(['added', 'not_available', 'not_available', 'invalid_quantity', 'not_available'], $this->statuses($crawler));
         self::assertSelectorTextContains('[data-test-tmonier-quick-order-result]', '1 line(s) added to your cart');
         self::assertSame([(string) $a->getCode() => 2], self::quantities($this->sessionCart()));
 
@@ -139,17 +142,17 @@ final class ShopQuickOrderTest extends WebTestCase
         self::assertSelectorTextContains('[data-test-flash-messages]', 'The pasted text is too long');
 
         $path = tempnam(sys_get_temp_dir(), 'qo') . '.csv';
-        file_put_contents($path, "SKU;Pieces\nQO-X;12\n");
+        file_put_contents($path, "Description;SKU;Notes\nShirt;QO-X;12\n");
         $field = $form['file'];
         self::assertInstanceOf(FileFormField::class, $field);
         $field->upload($path);
         $this->client->submit($form);
         unlink($path);
         $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-test-flash-messages]', 'columns of the CSV file were not recognised');
+        self::assertSelectorTextContains('[data-test-flash-messages]', 'quantity column of the CSV file was not found');
     }
 
-    public function testTheAddStepOnlyAcceptsTheLastPreviewOfTheSession(): void
+    public function testTheAddStepOnlyAcceptsPreviewsKeptInTheSession(): void
     {
         $a = $this->catalog->variant('QO-A-' . $this->catalog->suffix);
         $crawler = $this->preview($a->getCode() . ';1');
@@ -157,17 +160,62 @@ final class ShopQuickOrderTest extends WebTestCase
 
         // The client cannot post its own lines: only the nonce of the preview kept in the session.
         $this->client->request('POST', $this->url('/quick-order/add'), ['_csrf_token' => $token, 'preview' => 'forged', 'payload' => '{"l": [["X", 5, [1]]], "i": []}']);
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-test-flash-messages]', 'This preview has expired');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-test-tmonier-quick-order-error]', 'already added or has expired');
+        self::assertNull($this->sessionCart());
 
         $this->client->submit($crawler->filter('[data-test-tmonier-quick-order-add]')->form());
         self::assertSame([(string) $a->getCode() => 1], self::quantities($this->sessionCart()));
         $this->client->followRedirect();
 
-        // A preview is used once.
-        $this->client->submit($crawler->filter('[data-test-tmonier-quick-order-add]')->form());
+        // A preview is used once (back button): the page comes back with the pasted text.
+        $crawler = $this->client->submit($crawler->filter('[data-test-tmonier-quick-order-add]')->form());
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-test-tmonier-quick-order-error]', 'already added or has expired');
+        self::assertSame($a->getCode() . ';1', $crawler->filter('#tmonier-quick-order-lines')->text());
+        self::assertSame([(string) $a->getCode() => 1], self::quantities($this->sessionCart()));
+    }
+
+    public function testEachTabCanAddItsOwnPreview(): void
+    {
+        $a = $this->catalog->variant('QO-A-' . $this->catalog->suffix);
+        $b = $this->catalog->variant('QO-B-' . $this->catalog->suffix);
+        $tabA = $this->preview($a->getCode() . ';2')->filter('[data-test-tmonier-quick-order-add]')->form();
+        $tabB = $this->preview($b->getCode() . ';3')->filter('[data-test-tmonier-quick-order-add]')->form();
+
+        $this->client->submit($tabA);
         $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-test-flash-messages]', 'This preview has expired');
+        $this->client->submit($tabB);
+
+        self::assertSame([(string) $a->getCode() => 2, (string) $b->getCode() => 3], self::quantities($this->sessionCart()));
+    }
+
+    public function testOnlyTheLastFivePreviewsAreKept(): void
+    {
+        $a = $this->catalog->variant('QO-A-' . $this->catalog->suffix);
+        $forms = [];
+        for ($i = 1; $i <= 6; ++$i) {
+            $forms[] = $this->preview($a->getCode() . ';' . $i)->filter('[data-test-tmonier-quick-order-add]')->form();
+        }
+
+        $this->client->submit($forms[0]);
+        self::assertSelectorTextContains('[data-test-tmonier-quick-order-error]', 'already added or has expired');
+        $this->client->submit($forms[1]);
+        self::assertSame([(string) $a->getCode() => 2], self::quantities($this->sessionCart()));
+    }
+
+    public function testTheUnitLimitIsExplained(): void
+    {
+        $lines = [];
+        foreach (['A', 'B', 'C'] as $name) {
+            $lines[] = $this->catalog->variant('QO-' . $name . '-' . $this->catalog->suffix)->getCode() . ';7000';
+        }
+        $crawler = $this->client->request('GET', $this->url('/quick-order'));
+        $this->client->submit($crawler->filter('[data-test-tmonier-quick-order-preview]')->form(), ['lines' => implode("\n", $lines)]);
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('[data-test-flash-messages]', 'more than 20000');
+        self::assertSelectorTextContains('[data-test-flash-messages]', 'The shop can change this limit');
     }
 
     public function testAmbiguousQuantitiesAreReportedNotGuessed(): void
@@ -176,8 +224,12 @@ final class ShopQuickOrderTest extends WebTestCase
 
         $crawler = $this->preview($a->getCode() . ';1.000');
 
-        self::assertSame(['invalid_quantity'], $this->statuses($crawler));
-        self::assertStringContainsString('without separators', $crawler->filter('[data-test-tmonier-quick-order-preview-result]')->text());
+        self::assertSame(['ambiguous_quantity'], $this->statuses($crawler));
+        self::assertStringContainsString('write 1000 without separator', $crawler->filter('[data-test-tmonier-quick-order-preview-result]')->text());
+
+        $crawler = $this->preview($a->getCode() . ';12,00');
+        self::assertSame(['valid'], $this->statuses($crawler));
+        self::assertStringContainsString('12', $crawler->filter('[data-test-tmonier-quick-order-line]')->text());
     }
 
     public function testRegisteredCustomersGetDetailedStatusesButNoStockLevels(): void

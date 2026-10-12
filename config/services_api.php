@@ -18,6 +18,7 @@ return static function (ContainerConfigurator $container): void {
             param('sylius.security.api_shop_route'),
             param('tmonier_quick_order.default_mode'),
             param('tmonier_quick_order.max_lines'),
+            param('tmonier_quick_order.max_total_quantity'),
         ])
         ->tag('api_platform.state_processor')
     ;

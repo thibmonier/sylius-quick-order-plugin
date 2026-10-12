@@ -12,6 +12,9 @@
             ]) }}
         </div>
         {% include '@SyliusShop/shared/flashes.html.twig' %}
+        {% if error %}
+            <div class="alert alert-danger my-2" role="alert" {{ sylius_test_html_attribute('tmonier-quick-order-error') }}>{{ error|trans({}, 'flashes') }}</div>
+        {% endif %}
         <h1 class="h2 mb-2">{{ 'tmonier_quick_order.ui.quick_order'|trans }}</h1>
         <p class="text-body-secondary mb-4">{{ 'tmonier_quick_order.ui.help'|trans({'%max%': max_lines}) }}</p>
 

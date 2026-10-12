@@ -47,7 +47,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly int $quantityLimit,
         private readonly QuantityRounding $quantityRounding = QuantityRounding::Reject,
-        private readonly int $maxTotalQuantity = 10000,
+        private readonly int $maxTotalQuantity = 20000,
         private readonly bool $exposeAvailableStock = false,
     ) {
     }
@@ -194,7 +194,8 @@ final class BulkCartAdder implements BulkCartAdderInterface
             $variant = $variants[$line->code];
             $result = $this->checkLine($line, $variant, $channel, self::quantityInCart($cart, $variant));
             if (!$detailed && \in_array($result->status, [LineStatus::Disabled, LineStatus::NotInChannel, LineStatus::NoChannelPricing], true)) {
-                $result = $result->withStatus(LineStatus::NotAvailable);
+                // Same line as for an unknown code: no names either.
+                $result = new LineResult($result->code, $result->requestedQuantity, $result->quantity, LineStatus::NotAvailable, $result->lineNumbers);
             }
             if (LineStatus::Valid === $result->status) {
                 $total += (int) $result->quantity;

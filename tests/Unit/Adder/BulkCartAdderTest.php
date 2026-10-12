@@ -174,6 +174,8 @@ final class BulkCartAdderTest extends TestCase
         $result = $this->adder()->validate($this->cart(false), $this->parse("OK;1\nOFF;1\nNO-PRICE;1\nNOPE;1"));
 
         self::assertSame(['valid', 'not_available', 'not_available', 'not_available'], array_map(static fn (LineResult $line): string => $line->status->value, $result->lines));
+        // Masked lines look exactly like unknown codes: no names (the unpriced product is published).
+        self::assertSame([['Product OK', 'Variant OK'], [null, null], [null, null], [null, null]], array_map(static fn (LineResult $line): array => [$line->productName, $line->variantName], $result->lines));
     }
 
     public function testCodesDifferingInCaseAreMergedOnlyWhenTheyAreTheSameVariant(): void

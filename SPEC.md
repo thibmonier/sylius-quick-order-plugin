@@ -95,6 +95,17 @@ The variant matrix on product pages is v1.1 and not part of this version.
 | Translations batched (two queries); cart quantities keyed by variant id | Constant number of queries whatever the number of lines (integration test). |
 | `pre_bulk_add` refusals are 422 in the API | Whole-request refusals are client errors. |
 
+### Re-verification round (product decisions, 2026-10-12)
+
+| Decision | Why |
+|---|---|
+| Zero fractions of 1-2 digits accepted (`5.0`, `12,00`); thousands groups `ambiguous_quantity`; other fractions `invalid_quantity` | Spreadsheet exports must work; only ambiguous forms are refused. |
+| Paste with commas: extra cells ignored, except quantity 1-3 digits followed by exactly 3 digits (ambiguous) | `ABC-1,2,100` (code, qty, price) must not become `2,100`. |
+| CSV: header found on the first non-blank row; unknown names mean positional columns; refusal only when a named code column has no quantity column; empty quantity cell is an error; extra 3-digit cell after the quantity is ambiguous | Harmless headers (`Product;Quantity`, `EAN;Units`) must not refuse files; nothing defaults to 1 in files. |
+| Last 5 previews kept in the session, one-time nonces; a used nonce re-renders the page with the pasted text | Several tabs, back button. |
+| `max_total_quantity` 20000, message gives the limit | Large but bounded B2B orders. |
+| Masked (`not_available`) lines carry no names | Indistinguishable from unknown codes. |
+
 ## 5. Cross-plugin constraints
 
 - Quote request plugin: quote carts refused (bridge above); statuses computed after
