@@ -16,21 +16,23 @@ that add every line with a single order processing. Free and open source.
 | Need | What the plugin does |
 |---|---|
 | Order from a list of references | **Quick order page** (`/{locale}/quick-order`): paste `CODE;qty`, `CODE,qty` or `CODE<TAB>qty` lines (a copy from a spreadsheet works as is), or `CODE qty` (space before the quantity only, codes may contain spaces). A header line (`SKU`, `code`...) is skipped. |
-| Import a file | **CSV upload**: UTF-8 with or without BOM, or Windows-1252; `,`, `;` or TAB detected; `SKU` / `QTY` header columns in any order (also `code`, `quantity`, `référence`, `Menge`...); no header = code then quantity. A **CSV template** can be downloaded. |
-| Know what will happen before it happens | **Preview** with a status per line: ready, unknown code, unavailable (product or variant disabled), not sold in this channel, no price, insufficient stock (with the available quantity, counting what is already in the cart), quantity above the cart line limit, invalid quantity. Then one **"Add N lines"** button. |
+| Import a file | **CSV upload**: UTF-8 with or without BOM, or Windows-1252; `,`, `;` or TAB detected; LF, CRLF or CR line endings; `SKU` / `QTY` header columns in any order (also `code`, `quantity`, `référence`, `Menge`, `Anzahl`...); no header = code then quantity. A header whose columns are not recognised refuses the file instead of guessing. A **CSV template** can be downloaded. |
+| Know what will happen before it happens | **Preview** with a status per line: ready, insufficient stock (counting what is already in the cart), quantity above the cart line limit, quantity rule of the product, invalid quantity; for logged-in customers also unknown code, unavailable (product or variant disabled), not sold in this channel, no price. Then one **"Add N lines"** button. |
 | Never lose the failing lines | **Error report** (CSV, formulas neutralised) with the lines that were not added, ready to fix and upload again. |
 | Choose the behaviour | **Partial** (add the valid lines, report the others; default) or **all or nothing**. |
 | Buy the same things again | **Order again** button on the customer's order page and in the order list. Removed, disabled or unpriced variants are reported, the other lines are added at today's prices. |
 | Integrate an ERP, a punch-out or a SPA | **`POST /api/v2/shop/orders/{tokenValue}/bulk-items`** with the same checks and a status per line. |
 | Stay fast | Duplicates are merged, variants are loaded in **one query**, items are merged into existing cart lines like the core does, the order is **processed once and flushed once**, whatever the number of lines. |
 
-Also included: translations in English, French, German, Spanish, Italian, Dutch and Polish;
+Also included: limits on lines, units and size per request; translations in English, French, German, Spanish, Italian, Dutch and Polish;
 links from the cart page and the customer account menu; no JavaScript needed; events for
 your own rules; MySQL, MariaDB and PostgreSQL support (the plugin has no table).
 
 ## Screenshots
 
-Screenshots go to `docs/images/`.
+![Quick order preview](docs/images/shop-quick-order-preview.jpg)
+
+![Quick order result](docs/images/shop-quick-order-result.jpg)
 
 ## Requirements
 
@@ -81,11 +83,26 @@ The API operation is registered automatically when API Platform is enabled.
 # config/packages/tmonier_sylius_quick_order.yaml
 tmonier_sylius_quick_order:
     max_lines: 200              # per paste, CSV file, reorder or API call
-    max_file_size: 1048576      # bytes
+    max_total_quantity: 10000   # units per paste, CSV file, reorder or API call
+    max_file_size: 1048576      # bytes, CSV file and pasted text
+    expose_available_stock: false  # true: "insufficient stock" lines tell how many units are left
     default_mode: partial       # or all_or_nothing
     allow_guests: true          # false: visitors are sent to the login page
     quantity_rounding: reject   # or round_up (see "Pack sizes" below)
 ```
+
+Quantities are plain whole numbers (`1000`): `1,000`, `1.000`, `1 000` or `12.0` are reported
+as invalid rather than guessed, since separators mean different things in different
+countries.
+
+What visitors see is limited on purpose: stock levels are not shown (unless
+`expose_available_stock`), product names only appear for products sold in the channel, and
+for visitors without an account (carts without a shop user) unknown, disabled, unpriced and
+other-channel codes all read *not available*, so the page cannot be used to discover
+unpublished products. Logged-in customers get the detailed status.
+
+The previewed lines stay in the session; the "add" form only carries a one-time token, so
+what is added is exactly what was previewed (and checked again).
 
 The maximum quantity of a cart line is the Sylius parameter
 `sylius.order_item_quantity_modifier.limit` (9999 by default). Sylius silently caps a line
@@ -125,13 +142,17 @@ Response (`200`):
 - Cart access follows the core `AddItemToCart` rule: a cart created by a registered customer
   is only reachable with that customer's token (`404` otherwise); guest carts are reachable
   by token.
-- `422` when the request is refused as a whole: invalid `mode`, more than `max_lines` lines,
-  no line, locked cart (`cart_locked`).
+- `422` when the request is refused as a whole, with the reason in `detail`: invalid `mode`,
+  more than `max_lines` lines (`too_many_lines`), more than `max_total_quantity` units
+  (`too_many_units`), no line (`empty`), locked cart (`cart_locked`), or a refusal of a
+  `tmonier_quick_order.pre_bulk_add` listener (its reason).
 - Line-level problems never fail the request: read `status` (same values as the shop:
-  `added`, `adjusted`, `removed`, `skipped`, `unknown_code`, `disabled`, `not_in_channel`,
-  `no_channel_pricing`, `insufficient_stock`, `quantity_limit_exceeded`,
-  `quantity_constraint`, `invalid_quantity`, `invalid_line`). In `all_or_nothing` mode,
-  `applied: false` means nothing was added.
+  `added`, `adjusted`, `removed`, `skipped`, `not_available`, `unknown_code`, `disabled`,
+  `not_in_channel`, `no_channel_pricing`, `insufficient_stock`, `quantity_limit_exceeded`,
+  `quantity_constraint`, `invalid_quantity`, `invalid_line`). `quantity` must be a JSON
+  integer or a string of digits, up to 999999999. `available` is `null` unless
+  `expose_available_stock` is on. In `all_or_nothing` mode, `applied: false` means nothing
+  was added.
 - Line numbers are the 1-based positions in `lines` (merged duplicates list several numbers).
 
 ## Extension points
@@ -139,8 +160,8 @@ Response (`200`):
 | What | How |
 |---|---|
 | Refuse carts that must not change (approval in progress, punch-out session...) | Implement `Tmonier\SyliusQuickOrderPlugin\Cart\LockedCartCheckerInterface` and tag the service `tmonier_quick_order.locked_cart_checker`. |
-| Pack sizes, minimum and maximum quantities | Alias `tmonier_quick_order.quantity_constraint_provider` to your `QuantityConstraintProviderInterface` implementation returning a `QuantityConstraint(minimum, multipleOf, maximum)`. With `quantity_rounding: round_up`, quantities are rounded up to the next valid quantity (shown in the preview); with `reject`, the line is reported. The default provider returns no constraint. A future `tmonier/sylius-container-fill-plugin` will own this logistics data. |
-| Your own rules before adding (budget, credit...) | Listen to `tmonier_quick_order.pre_bulk_add` (`PreBulkAddEvent`: cart, validated lines, mode) and call `refuse('my_reason')`; translate `tmonier_quick_order.refusal.my_reason` in the `flashes` domain. |
+| Pack sizes, minimum and maximum quantities | Alias `tmonier_quick_order.quantity_constraint_provider` to your `QuantityConstraintProviderInterface` implementation returning a `QuantityConstraint(minimum, multipleOf, maximum)`. The constraint applies to the quantity the cart line will hold (already in the cart + added). With `quantity_rounding: round_up`, the added quantity is raised so that this total is valid (shown in the preview); with `reject`, the line is reported. The default provider returns no constraint. A future `tmonier/sylius-container-fill-plugin` will own this logistics data. |
+| Your own rules before adding (budget, credit...) | Listen to `tmonier_quick_order.pre_bulk_add` (`PreBulkAddEvent`: cart, validated lines, mode) and call `refuse('my_reason')`; translate `tmonier_quick_order.refusal.my_reason` in the `flashes` domain. The API answers `422` with the reason. |
 | React after the addition | `tmonier_quick_order.post_bulk_add` (`PostBulkAddEvent`: cart, result), dispatched after the flush. |
 | Use the engine elsewhere | `Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface` (`validate()` for a preview, `add()`), with `PasteParser`, `CsvParser` or `LineCollector` to build the input. |
 
@@ -170,9 +191,10 @@ lines and prices) is refused automatically: the plugin registers a bridge to tha
 
 ## Limitations
 
-- Codes are product **variant** codes. Matching is exact; MySQL and MariaDB collations also
-  match codes that differ in case only, PostgreSQL does not. Codes up to 255 characters,
-  quantities are whole numbers (`12`, `12.0` and `12,00` are accepted).
+- Codes are product **variant** codes, up to 255 characters. Matching is the same on MySQL,
+  MariaDB and PostgreSQL: the exact code first, otherwise a case-insensitive match when it
+  designates a single variant (that second query cannot use the code index; it only runs
+  for codes without exact match). Lines resolved to the same variant are merged.
 - No XLSX import: paste from the spreadsheet or save it as CSV.
 - No variant matrix on product pages yet (planned), no saved lists, no customer-specific
   prices: prices are those of the channel, as in the regular cart.
@@ -183,14 +205,18 @@ lines and prices) is refused automatically: the plugin registers a bridge to tha
 ## Development
 
 ```bash
-docker compose up -d mysql mailhog   # ports in compose.override.yml
+cp compose.override.dist.yml compose.override.yml   # publishes MySQL on 3306 (change ports at will)
+docker compose up -d mysql mailhog
 composer install
 vendor/bin/console doctrine:database:create
 vendor/bin/console doctrine:migrations:migrate -n
 vendor/bin/console sylius:fixtures:load -n   # includes the quick order demo data
 
 vendor/bin/phpunit --testsuite unit
-APP_ENV=test vendor/bin/phpunit --testsuite non-unit   # needs a test database with fixtures
+APP_ENV=test vendor/bin/console doctrine:database:create
+APP_ENV=test vendor/bin/console doctrine:migrations:migrate -n
+APP_ENV=test vendor/bin/console sylius:fixtures:load -n
+APP_ENV=test vendor/bin/phpunit --testsuite non-unit
 vendor/bin/phpstan analyse
 vendor/bin/ecs check
 ```

@@ -80,6 +80,21 @@ The variant matrix on product pages is v1.1 and not part of this version.
 | CSV cells starting with `= + - @` TAB CR prefixed with `'` | CSV injection in the downloadable report. |
 | `^2.2.9 \|\| ^2.3` | Cart / payment advisories GHSA-2rv4-pjmm-7fxf and GHSA-vv4h-q2x8-74g4 fixed in 2.2.9. |
 
+### Review round (2026-10-12)
+
+| Decision | Why |
+|---|---|
+| Quantities are plain integers; `1,000`, `1.000`, `1 000`, `12.0` are `invalid_quantity` | Separators are ambiguous across locales; truncating `1.000` to 1 lost 999 units silently. |
+| A CSV header row whose code or quantity column is not recognised refuses the file (`csv_columns`); header cells are read as UTF-8 or Windows-1252; CR-only line endings normalised | Never "1 of everything" because a header has an unexpected name or encoding. |
+| `max_total_quantity` (10000) per request, quantities up to 999999999, overflow-safe rounding | One request could create millions of order item units; huge API integers caused a 500. |
+| Pasted text limited to `max_file_size` and read line by line, stopping past `max_lines` | Unbounded paste allocated millions of strings. |
+| The previewed input stays in the session (one per session, one-time nonce in the form) | The client-posted payload could carry thousands of line numbers and inflated sessions. |
+| Stock levels hidden unless `expose_available_stock`; product names only for products sold in the channel; for carts without shop user, unknown / disabled / other-channel / unpriced codes are all `not_available` | The core never discloses stock counts; the preview must not reveal unpublished products. |
+| Quantity constraints checked on cart quantity + added quantity, rounding on that total | Constraints are about the cart line, not the increment. |
+| Exact code match, then case-insensitive only when unique, on every database; lines merged by resolved variant | Same behaviour on MySQL and PostgreSQL; distinct `abc` / `ABC` variants are never collapsed. |
+| Translations batched (two queries); cart quantities keyed by variant id | Constant number of queries whatever the number of lines (integration test). |
+| `pre_bulk_add` refusals are 422 in the API | Whole-request refusals are client errors. |
+
 ## 5. Cross-plugin constraints
 
 - Quote request plugin: quote carts refused (bridge above); statuses computed after
@@ -93,6 +108,7 @@ The variant matrix on product pages is v1.1 and not part of this version.
   every status, constraint reject / round up, all-or-nothing with and without revert,
   locked cart, events), bridge pass, configuration, translations (7 locales, identical keys,
   every used key exists).
+- Integration: the number of queries of `validate()` is the same for 10 and 50 lines.
 - Integration (real services, rolled-back transaction): 200 lines with a counting wrapper
   around the real order processor (1 call); bulk vs one-by-one totals equal with a
   `cart_quantity` percentage promotion and an `item_total` fixed promotion; the 12-variant

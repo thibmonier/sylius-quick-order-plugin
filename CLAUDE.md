@@ -59,7 +59,11 @@ the plugin has no table, CI runs `--skip-sync`.
 - Labels in `messages`, flashes and refusals in `flashes`; every key in en, fr, de, es, it,
   nl, pl (`TranslationsTest`). Clear the cache (dev and test) after adding a translation file.
 - Never re-dispatch `sylius.cart_item_add` (core listener would add every line again).
-- Compare variants and channels by code, not by identity.
+- Compare channels by code and variants by id (code when not persisted), never by identity.
+- Do not disclose stock counts or names of unpublished products; visitor carts get
+  `not_available` for every unusable code (`BulkCartAdder::check()`).
+- Quantities are plain integers (`LineCollector::parseQuantity()`); never guess separators.
+- The previewed input lives in the session (`QuickOrderController::PREVIEW_KEY` + nonce).
 - Functional tests: one kernel, no reboot, one transaction rolled back after each test. The
   entity manager is cleared between requests: reload entities before changing them. The
   test app resets the shop "new cart" context on each request
