@@ -233,6 +233,9 @@ The demo data contains a T-shirt with 12 variants `QO-TEE-<S|M|L|XL>-<RED|BLUE|B
 (`QO-TEE-XL-BLACK` out of stock, `QO-TEE-XL-BLUE` disabled, `QO-TEE-XL-RED` without price),
 a buyer `quickorder@example.com` / `sylius` with two past orders to reorder, and
 [`docs/examples/quick-order-demo.csv`](docs/examples/quick-order-demo.csv) to upload.
+The demo channel requires account verification and the Sylius `shop_user` fixture does not
+verify accounts: verify the buyer before logging in, for instance with
+`UPDATE sylius_shop_user SET verified_at = NOW() WHERE username = 'quickorder@example.com';`.
 
 ## License
 
