@@ -107,7 +107,7 @@ final class TestCatalog
      * @param array<string, mixed> $ruleConfiguration
      * @param array<string, mixed> $actionConfiguration
      */
-    public function promotion(string $ruleType, array $ruleConfiguration, string $actionType, array $actionConfiguration): PromotionInterface
+    public function promotion(string $ruleType, array $ruleConfiguration, string $actionType, array $actionConfiguration, int $priority = 1000): PromotionInterface
     {
         /** @var FactoryInterface<PromotionInterface> $promotionFactory */
         $promotionFactory = $this->container->get('sylius.factory.promotion');
@@ -119,7 +119,7 @@ final class TestCatalog
         $promotion = $promotionFactory->createNew();
         $promotion->setCode('QO_PROMO_' . $ruleType . '_' . $this->suffix);
         $promotion->setName('Quick order test ' . $ruleType);
-        $promotion->setPriority(1000);
+        $promotion->setPriority($priority);
         $promotion->addChannel($this->channel());
         $rule = $ruleFactory->createNew();
         $rule->setType($ruleType);
@@ -133,6 +133,20 @@ final class TestCatalog
         $this->entityManager()->flush();
 
         return $promotion;
+    }
+
+    /** Archives the other promotions of the channel (fixture promotions), in the test transaction. */
+    public function archiveOtherPromotions(): void
+    {
+        $channel = $this->channel();
+        /** @var list<PromotionInterface> $promotions */
+        $promotions = $this->entityManager()->getRepository(PromotionInterface::class)->findAll();
+        foreach ($promotions as $promotion) {
+            if ($promotion->hasChannel($channel) && !str_ends_with((string) $promotion->getCode(), '_' . $this->suffix)) {
+                $promotion->setArchivedAt(new \DateTime());
+            }
+        }
+        $this->entityManager()->flush();
     }
 
     /** A customer with an enabled shop account. */

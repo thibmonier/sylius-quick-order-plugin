@@ -78,8 +78,10 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
     public function testBulkAndOneByOneGiveTheSameTotals(): void
     {
         $channelCode = (string) $this->catalog->channel()->getCode();
-        $this->catalog->promotion('cart_quantity', ['count' => 5], 'order_percentage_discount', ['percentage' => 0.1]);
-        $this->catalog->promotion('item_total', [$channelCode => ['amount' => 5000]], 'order_fixed_discount', [$channelCode => ['amount' => 700]]);
+        // Only the two test promotions, in a fixed order: no dependency on the fixture promotions.
+        $this->catalog->archiveOtherPromotions();
+        $this->catalog->promotion('cart_quantity', ['count' => 5], 'order_percentage_discount', ['percentage' => 0.1], 1001);
+        $this->catalog->promotion('item_total', [$channelCode => ['amount' => 5000]], 'order_fixed_discount', [$channelCode => ['amount' => 700]], 1000);
         $lines = [];
         foreach ([[1999, 2], [4550, 1], [999, 3], [12000, 1]] as $index => [$price, $quantity]) {
             $code = sprintf('QO-%s-T%d', $this->catalog->suffix, $index);
@@ -106,10 +108,11 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
         self::assertSame($oneByOne->getTaxTotal(), $bulk->getTaxTotal());
         self::assertSame($oneByOne->getShippingTotal(), $bulk->getShippingTotal());
         self::assertSame($oneByOne->getTotal(), $bulk->getTotal());
-        // Both test promotions applied (10% of 26646 + 700), whatever the fixture promotions do.
+        // Both test promotions applied: 10% of 23545, then 700.
         $labels = array_map(static fn (\Sylius\Component\Order\Model\AdjustmentInterface $adjustment): string => (string) $adjustment->getLabel(), $bulk->getAdjustmentsRecursively(AdjustmentInterface::ORDER_PROMOTION_ADJUSTMENT)->toArray());
-        self::assertContains('Quick order test cart_quantity', $labels);
-        self::assertContains('Quick order test item_total', $labels);
+        self::assertContains('Quick order test cart_quantity', $labels, 'Applied: ' . implode(', ', array_unique($labels)));
+        self::assertContains('Quick order test item_total', $labels, 'Applied: ' . implode(', ', array_unique($labels)));
+        self::assertSame(-(2355 + 700), $bulk->getOrderPromotionTotal());
     }
 
     public function testTheMatrixProductLinesGetTheirStatuses(): void
