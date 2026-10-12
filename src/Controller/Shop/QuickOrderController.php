@@ -35,6 +35,9 @@ final class QuickOrderController extends AbstractController
 
     private const RESULT_KEY = '_tmonier_quick_order.result';
 
+    /** The previewed input stays on the server; the form only carries its nonce. */
+    private const PREVIEW_KEY = '_tmonier_quick_order.preview';
+
     /** @param OrderRepositoryInterface<OrderInterface> $orderRepository */
     public function __construct(
         private readonly CartContextInterface $cartContext,
@@ -74,7 +77,7 @@ final class QuickOrderController extends AbstractController
         $text = (string) $request->request->get('lines', '');
         $file = $request->files->get('file');
         if ($file instanceof UploadedFile) {
-            $input = $file->isValid() ? $this->csvParser->parseFile($file->getPathname()) : QuickOrderInput::fileRejected();
+            $input = $file->isValid() ? $this->csvParser->parseFile($file->getPathname()) : QuickOrderInput::rejected(BulkAddResult::REFUSED_FILE);
         } else {
             $input = $this->pasteParser->parse($text);
         }
@@ -84,10 +87,13 @@ final class QuickOrderController extends AbstractController
             return $this->redirectWithError('tmonier_quick_order.refusal.' . $result->refusal);
         }
         $this->storeResult($request, $result);
+        $nonce = bin2hex(random_bytes(16));
+        // One preview per session (bounded by max_lines like any parsed input).
+        $request->getSession()->set(self::PREVIEW_KEY, ['nonce' => $nonce, 'input' => $input->toJson()]);
 
         return $this->render('@TmonierSyliusQuickOrderPlugin/shop/quick_order/index.html.twig', $this->viewParameters([
             'preview' => $result,
-            'payload' => $input->toJson(),
+            'preview_nonce' => $nonce,
             'lines' => $file instanceof UploadedFile ? '' : $text,
             'mode' => $this->readMode($request)->value,
         ]));
@@ -102,9 +108,15 @@ final class QuickOrderController extends AbstractController
             return $this->redirectWithError('tmonier_quick_order.invalid_csrf_token');
         }
 
-        $input = QuickOrderInput::fromJson((string) $request->request->get('payload', ''), $this->maxLines);
+        $session = $request->getSession();
+        $preview = $session->get(self::PREVIEW_KEY);
+        $nonce = (string) $request->request->get('preview', '');
+        if (!\is_array($preview) || !\is_string($preview['nonce'] ?? null) || !\is_string($preview['input'] ?? null) || '' === $nonce || !hash_equals($preview['nonce'], $nonce)) {
+            return $this->redirectWithError('tmonier_quick_order.refusal.' . BulkAddResult::REFUSED_PREVIEW_EXPIRED);
+        }
+        $session->remove(self::PREVIEW_KEY);
 
-        return $this->addAndRedirect($request, $input, $this->readMode($request));
+        return $this->addAndRedirect($request, QuickOrderInput::fromJson($preview['input'], $this->maxLines), $this->readMode($request));
     }
 
     public function reorderAction(Request $request, string $number): Response
@@ -228,7 +240,7 @@ final class QuickOrderController extends AbstractController
         return $parameters + [
             'preview' => null,
             'result' => null,
-            'payload' => null,
+            'preview_nonce' => null,
             'lines' => '',
             'mode' => $this->defaultMode,
             'max_lines' => $this->maxLines,

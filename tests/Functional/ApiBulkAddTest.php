@@ -37,10 +37,10 @@ final class ApiBulkAddTest extends WebTestCase
         /** @var list<array{status: string, lineNumbers: list<int>, addedQuantity: int, available: int|null}> $lines */
         $lines = $data['lines'];
         self::assertSame(
-            [['added', [1, 4], 3], ['insufficient_stock', [2], 0], ['unknown_code', [3], 0], ['invalid_line', [5], 0]],
+            [['added', [1, 4], 3], ['insufficient_stock', [2], 0], ['not_available', [3], 0], ['invalid_line', [5], 0]],
             array_map(static fn (array $line): array => [$line['status'], $line['lineNumbers'], $line['addedQuantity']], $lines),
         );
-        self::assertSame(3, $lines[1]['available']);
+        self::assertNull($lines[1]['available'], 'Stock levels are not disclosed.');
 
         $this->entityManager()->clear();
         $reloaded = $this->entityManager()->find(OrderInterface::class, $cart->getId());
@@ -104,6 +104,42 @@ final class ApiBulkAddTest extends WebTestCase
         $this->bulkAdd($cart, ['lines' => [['code' => $a->getCode(), 'quantity' => 1]]]);
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('cart_locked', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testHugeQuantitiesAreLineErrorsNotServerErrors(): void
+    {
+        $cart = $this->catalog->cart();
+        $code = (string) $this->catalog->variant('QO-A-' . $this->catalog->suffix)->getCode();
+
+        $data = $this->bulkAdd($cart, ['lines' => [['code' => $code, 'quantity' => \PHP_INT_MAX], ['code' => $code, 'quantity' => \PHP_INT_MAX], ['code' => $code, 'quantity' => '1,000']]]);
+
+        self::assertResponseIsSuccessful();
+        self::assertIsArray($data['lines']);
+        self::assertSame(['invalid_quantity', 'invalid_quantity', 'invalid_quantity'], array_column($data['lines'], 'status'));
+    }
+
+    public function testTooManyUnitsAndListenerRefusalsAre422(): void
+    {
+        $cart = $this->catalog->cart();
+        $a = (string) $this->catalog->variant('QO-A-' . $this->catalog->suffix)->getCode();
+        $b = (string) $this->catalog->variant('QO-B-' . $this->catalog->suffix)->getCode();
+
+        $this->bulkAdd($cart, ['lines' => [['code' => $a, 'quantity' => 6000], ['code' => $b, 'quantity' => 4001]]]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('too_many_units', (string) $this->client->getResponse()->getContent());
+
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $listener = static fn (\Tmonier\SyliusQuickOrderPlugin\Event\PreBulkAddEvent $event) => $event->refuse('budget_exceeded');
+        $dispatcher->addListener(\Tmonier\SyliusQuickOrderPlugin\Event\QuickOrderEvents::PRE_BULK_ADD, $listener);
+
+        try {
+            $this->bulkAdd($cart, ['lines' => [['code' => $a, 'quantity' => 1]]]);
+        } finally {
+            $dispatcher->removeListener(\Tmonier\SyliusQuickOrderPlugin\Event\QuickOrderEvents::PRE_BULK_ADD, $listener);
+        }
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('budget_exceeded', (string) $this->client->getResponse()->getContent());
     }
 
     public function testTheOperationIsDocumented(): void

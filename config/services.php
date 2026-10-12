@@ -60,6 +60,8 @@ return static function (ContainerConfigurator $container): void {
             inline_service(QuantityRounding::class)
                 ->factory([QuantityRounding::class, 'from'])
                 ->args([param('tmonier_quick_order.quantity_rounding')]),
+            param('tmonier_quick_order.max_total_quantity'),
+            param('tmonier_quick_order.expose_available_stock'),
         ])
         ->public()
     ;
@@ -67,7 +69,7 @@ return static function (ContainerConfigurator $container): void {
 
     $services
         ->set('tmonier_quick_order.paste_parser', PasteParser::class)
-        ->args([param('tmonier_quick_order.max_lines')])
+        ->args([param('tmonier_quick_order.max_lines'), param('tmonier_quick_order.max_file_size')])
     ;
     $services
         ->set('tmonier_quick_order.csv_parser', CsvParser::class)

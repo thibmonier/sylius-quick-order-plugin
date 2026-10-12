@@ -15,6 +15,8 @@ final class ConfigurationTest extends TestCase
     {
         self::assertSame([
             'max_lines' => 200,
+            'max_total_quantity' => 10000,
+            'expose_available_stock' => false,
             'max_file_size' => 1048576,
             'default_mode' => 'partial',
             'allow_guests' => true,

@@ -37,7 +37,7 @@ final class CsvWriterTest extends TestCase
         self::assertStringStartsWith("\u{FEFF}", $csv);
         self::assertSame(['line', 'SKU', 'QTY', 'status', 'message'], $rows[0]);
         self::assertSame(['2', '\'=HYPERLINK("http://evil")', '1', 'unknown_code', 'tmonier_quick_order.status.unknown_code'], $rows[1]);
-        self::assertSame(['3 4', 'LOW', '5', 'insufficient_stock', 'tmonier_quick_order.status.insufficient_stock|3'], $rows[2]);
+        self::assertSame(['3 4', 'LOW', '5', 'insufficient_stock', 'tmonier_quick_order.status.insufficient_stock_available|3'], $rows[2]);
         self::assertSame('adjusted', $rows[3][3]);
         self::assertCount(4, $rows);
     }
@@ -54,7 +54,7 @@ final class CsvWriterTest extends TestCase
             {
                 $available = $parameters['%available%'] ?? '';
 
-                return 'tmonier_quick_order.status.insufficient_stock' === $id && \is_string($available) ? $id . '|' . $available : $id;
+                return 'tmonier_quick_order.status.insufficient_stock_available' === $id && \is_string($available) ? $id . '|' . $available : $id;
             }
 
             public function getLocale(): string

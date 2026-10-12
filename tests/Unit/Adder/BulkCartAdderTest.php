@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Sylius\Component\Core\Model\Channel;
 use Sylius\Component\Core\Model\ChannelInterface;
 use Sylius\Component\Core\Model\ChannelPricing;
+use Sylius\Component\Core\Model\Customer;
 use Sylius\Component\Core\Model\Order;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\OrderItem;
@@ -19,6 +20,7 @@ use Sylius\Component\Core\Model\Product;
 use Sylius\Component\Core\Model\ProductInterface;
 use Sylius\Component\Core\Model\ProductVariant;
 use Sylius\Component\Core\Model\ProductVariantInterface;
+use Sylius\Component\Core\Model\ShopUser;
 use Sylius\Component\Inventory\Checker\AvailabilityChecker;
 use Sylius\Component\Order\Factory\OrderItemUnitFactory;
 use Sylius\Component\Order\Modifier\OrderItemQuantityModifier;
@@ -91,6 +93,7 @@ final class BulkCartAdderTest extends TestCase
         $cart = $this->cart();
         $existing = $this->cartItem($variant, 2);
         $cart->addItem($existing);
+        $this->lookup->alias('abc', $variant);
 
         $result = $this->adder()->add($cart, $this->parse("ABC;3\nabc;1"), BulkAddMode::Partial);
 
@@ -124,7 +127,7 @@ final class BulkCartAdderTest extends TestCase
             ['valid', 'disabled', 'disabled', 'not_in_channel', 'no_channel_pricing', 'insufficient_stock', 'unknown_code', 'invalid_quantity'],
             array_map(static fn (LineResult $line): string => $line->status->value, $result->lines),
         );
-        self::assertSame(5, $result->lines[5]->available);
+        self::assertNull($result->lines[5]->available, 'Stock levels are not disclosed by default.');
         self::assertSame('Product OK', $result->lines[0]->productName);
         self::assertSame('Variant OK', $result->lines[0]->variantName);
         self::assertSame(0, $this->processor->calls);
@@ -138,11 +141,76 @@ final class BulkCartAdderTest extends TestCase
         $cart = $this->cart();
         $cart->addItem($this->cartItem($variant, 2));
 
-        $result = $this->adder()->validate($cart, $this->parse('LOW;3'));
+        $result = $this->adder(exposeAvailableStock: true)->validate($cart, $this->parse('LOW;3'));
 
         self::assertSame(LineStatus::InsufficientStock, $result->lines[0]->status);
         self::assertSame(2, $result->lines[0]->available);
+        self::assertSame('tmonier_quick_order.status.insufficient_stock_available', $result->lines[0]->getMessageKey());
+        self::assertNull($this->adder()->validate($cart, $this->parse('LOW;3'))->lines[0]->available);
         self::assertSame(LineStatus::Valid, $this->adder()->validate($cart, $this->parse('LOW;2'))->lines[0]->status);
+    }
+
+    public function testNamesOfUnpublishedProductsAreNeverShown(): void
+    {
+        $this->variant('OFF')->setEnabled(false);
+        $otherChannel = new Channel();
+        $otherChannel->setCode('OTHER');
+        $elsewhere = $this->variant('ELSEWHERE')->getProduct();
+        self::assertInstanceOf(ProductInterface::class, $elsewhere);
+        $elsewhere->removeChannel($this->channel);
+        $elsewhere->addChannel($otherChannel);
+
+        $result = $this->adder()->validate($this->cart(), $this->parse("OFF;1\nELSEWHERE;1"));
+
+        self::assertSame([[null, null], [null, null]], array_map(static fn (LineResult $line): array => [$line->productName, $line->variantName], $result->lines));
+    }
+
+    public function testVisitorsCannotTellUnavailableCodesFromUnknownOnes(): void
+    {
+        $this->variant('OK');
+        $this->variant('OFF')->setEnabled(false);
+        $this->variant('NO-PRICE', null);
+
+        $result = $this->adder()->validate($this->cart(false), $this->parse("OK;1\nOFF;1\nNO-PRICE;1\nNOPE;1"));
+
+        self::assertSame(['valid', 'not_available', 'not_available', 'not_available'], array_map(static fn (LineResult $line): string => $line->status->value, $result->lines));
+    }
+
+    public function testCodesDifferingInCaseAreMergedOnlyWhenTheyAreTheSameVariant(): void
+    {
+        // Two variants whose codes differ in case (possible on PostgreSQL) stay two lines.
+        $this->variant('abc');
+        $this->variant('ABC');
+        $cart = $this->cart();
+
+        $result = $this->adder()->add($cart, $this->parse("abc;1\nABC;5"), BulkAddMode::Partial);
+
+        self::assertSame([['abc', 1], ['ABC', 5]], array_map(static fn (LineResult $line): array => [$line->code, $line->addedQuantity], $result->lines));
+        self::assertSame(1, $this->item($cart, 'abc')->getQuantity());
+        self::assertSame(5, $this->item($cart, 'ABC')->getQuantity());
+    }
+
+    public function testCodesResolvedToTheSameVariantShareOneLine(): void
+    {
+        $variant = $this->variant('ABC', 1000, 5);
+        $this->lookup->alias('abc', $variant);
+
+        $result = $this->adder()->validate($this->cart(), $this->parse("ABC;3\nabc;3"));
+
+        self::assertCount(1, $result->lines);
+        self::assertSame([1, 2], $result->lines[0]->lineNumbers);
+        self::assertSame(LineStatus::InsufficientStock, $result->lines[0]->status);
+    }
+
+    public function testTheTotalNumberOfUnitsPerRequestIsCapped(): void
+    {
+        $this->variant('A');
+        $this->variant('B');
+        $cart = $this->cart();
+
+        self::assertSame(BulkAddResult::REFUSED_TOO_MANY_UNITS, $this->adder(maxTotalQuantity: 100)->add($cart, $this->parse("A;60\nB;41"), BulkAddMode::Partial)->refusal);
+        self::assertCount(0, $cart->getItems());
+        self::assertTrue($this->adder(maxTotalQuantity: 100)->add($cart, $this->parse("A;60\nB;40"), BulkAddMode::Partial)->applied);
     }
 
     public function testTheQuantityLimitIsReportedInsteadOfSilentlyCapped(): void
@@ -173,6 +241,22 @@ final class BulkCartAdderTest extends TestCase
         self::assertSame(12, $rounded->lines[0]->quantity);
         self::assertTrue($rounded->lines[0]->isRounded());
         self::assertSame(12, $this->item($cart, 'CASE')->getQuantity());
+    }
+
+    public function testQuantityConstraintsApplyToTheCartQuantity(): void
+    {
+        $variant = $this->variant('CASE');
+        $cart = $this->cart();
+        $cart->addItem($this->cartItem($variant, 12));
+
+        $this->constraint = new QuantityConstraint(12, 6, 30);
+        // 12 + 6 = 18: a valid total, even though 6 alone is below the minimum.
+        self::assertSame(LineStatus::Valid, $this->adder()->validate($cart, $this->parse('CASE;6'))->lines[0]->status);
+        // 12 + 5 = 17: refused, or rounded to a total of 18.
+        self::assertSame(LineStatus::QuantityConstraint, $this->adder()->validate($cart, $this->parse('CASE;5'))->lines[0]->status);
+        self::assertSame(6, $this->adder(QuantityRounding::RoundUp)->validate($cart, $this->parse('CASE;5'))->lines[0]->quantity);
+        // 12 + 24 = 36 > 30: refused, even with rounding.
+        self::assertSame(LineStatus::QuantityConstraint, $this->adder(QuantityRounding::RoundUp)->validate($cart, $this->parse('CASE;24'))->lines[0]->status);
     }
 
     public function testPartialModeAddsTheValidLines(): void
@@ -270,7 +354,7 @@ final class BulkCartAdderTest extends TestCase
 
         self::assertSame(BulkAddResult::REFUSED_EMPTY, $this->adder()->add($cart, new QuickOrderInput([]), BulkAddMode::Partial)->refusal);
         self::assertSame(BulkAddResult::REFUSED_TOO_MANY_LINES, $this->adder()->validate($cart, $this->parse("A;1\nB;1", 1))->refusal);
-        self::assertSame(BulkAddResult::REFUSED_FILE, $this->adder()->validate($cart, QuickOrderInput::fileRejected())->refusal);
+        self::assertSame(BulkAddResult::REFUSED_FILE, $this->adder()->validate($cart, QuickOrderInput::rejected(BulkAddResult::REFUSED_FILE))->refusal);
     }
 
     public function testEventsAroundTheAddition(): void
@@ -310,7 +394,7 @@ final class BulkCartAdderTest extends TestCase
         self::assertEquals($result, BulkAddResult::fromArray($result->toArray()));
     }
 
-    private function adder(QuantityRounding $rounding = QuantityRounding::Reject): BulkCartAdder
+    private function adder(QuantityRounding $rounding = QuantityRounding::Reject, int $maxTotalQuantity = 1000000, bool $exposeAvailableStock = false): BulkCartAdder
     {
         $test = $this;
 
@@ -344,6 +428,8 @@ final class BulkCartAdderTest extends TestCase
             $this->dispatcher,
             9999,
             $rounding,
+            $maxTotalQuantity,
+            $exposeAvailableStock,
         );
     }
 
@@ -375,10 +461,16 @@ final class BulkCartAdderTest extends TestCase
         return (new PasteParser($maxLines))->parse($text);
     }
 
-    private function cart(): OrderInterface
+    /** A cart of a registered customer (detailed statuses), or of a visitor. */
+    private function cart(bool $registered = true): OrderInterface
     {
         $cart = new Order();
         $cart->setChannel($this->channel);
+        if ($registered) {
+            $customer = new Customer();
+            $customer->setUser(new ShopUser());
+            $cart->setCustomer($customer);
+        }
 
         return $cart;
     }

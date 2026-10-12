@@ -116,7 +116,9 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
     {
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
-        $cart = $this->catalog->cart();
+        // Detailed statuses: cart of a registered customer. The lowercase code matches on every
+        // database (exact match first, then a unique case-insensitive match).
+        $cart = $this->catalog->cart($this->catalog->customer());
         $text = implode("\n", [$prefix . '-S-RED;2', $prefix . '-XL-BLACK;1', $prefix . '-XL-BLUE;1', $prefix . '-XL-RED;1', $prefix . '-M-BLUE;150', strtolower($prefix . '-L-black') . ';3', 'QO-NOPE;1']);
 
         $result = $this->service('tmonier_quick_order.bulk_cart_adder', BulkCartAdderInterface::class)->add($cart, (new PasteParser(200))->parse($text), BulkAddMode::Partial);
@@ -125,9 +127,58 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
             ['added', 'insufficient_stock', 'disabled', 'no_channel_pricing', 'insufficient_stock', 'added', 'unknown_code'],
             array_map(static fn (LineResult $line): string => $line->status->value, $result->lines),
         );
-        self::assertSame(100, $result->lines[4]->available);
+        self::assertNull($result->lines[4]->available, 'Stock levels are not disclosed by default.');
         self::assertCount(2, $cart->getItems());
         self::assertCount(12, $variants);
+    }
+
+    public function testTheNumberOfQueriesDoesNotGrowWithTheNumberOfLines(): void
+    {
+        $customerId = $this->catalog->customer()->getId();
+        $texts = [];
+        foreach ([10, 50] as $count) {
+            $text = '';
+            for ($i = 1; $i <= $count; ++$i) {
+                $code = sprintf('QO-%s-%d-%03d', $this->catalog->suffix, $count, $i);
+                $this->catalog->variant($code);
+                $text .= $code . ";1\n";
+            }
+            $texts[$count] = $text;
+        }
+
+        $queries = [];
+        foreach ($texts as $count => $text) {
+            $customer = $this->entityManager()->find(\Sylius\Component\Core\Model\CustomerInterface::class, $customerId);
+            self::assertInstanceOf(\Sylius\Component\Core\Model\CustomerInterface::class, $customer);
+            $cart = $this->catalog->cart($customer);
+            $id = $cart->getId();
+            $this->entityManager()->clear();
+            $cart = $this->entityManager()->find(OrderInterface::class, $id);
+            self::assertInstanceOf(OrderInterface::class, $cart);
+
+            $before = $this->queryCount();
+            $result = $this->service('tmonier_quick_order.bulk_cart_adder', BulkCartAdderInterface::class)->validate($cart, (new PasteParser(200))->parse($text));
+            $queries[$count] = $this->queryCount() - $before;
+            self::assertSame($count, $result->countAddable());
+            // Names come from the batched translations, not from lazy loading.
+            self::assertNotNull($result->lines[0]->productName);
+            $this->entityManager()->clear();
+        }
+
+        self::assertSame($queries[10], $queries[50], 'Queries for 10 lines vs 50 lines');
+        self::assertLessThanOrEqual(10, $queries[50]);
+    }
+
+    private function queryCount(): int
+    {
+        $holder = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(\Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder::class, $holder);
+        $count = 0;
+        foreach ($holder->getData() as $queries) {
+            $count += \is_array($queries) ? \count($queries) : 0;
+        }
+
+        return $count;
     }
 
     private function adder(OrderProcessorInterface $processor): BulkCartAdder

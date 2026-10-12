@@ -11,7 +11,7 @@
         {% if addable > 0 and not (mode == 'all_or_nothing' and preview.errors is not empty) %}
             <form method="post" action="{{ path('tmonier_quick_order_shop_add') }}" class="m-0">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token(csrf_id) }}">
-                <input type="hidden" name="payload" value="{{ payload }}">
+                <input type="hidden" name="preview" value="{{ preview_nonce }}">
                 <input type="hidden" name="mode" value="{{ mode }}">
                 <button type="submit" class="btn btn-primary" {{ sylius_test_html_attribute('tmonier-quick-order-add') }}>
                     {{ 'tmonier_quick_order.ui.add_lines'|trans({'%count%': addable}) }}

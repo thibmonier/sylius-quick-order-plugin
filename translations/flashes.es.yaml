@@ -6,3 +6,7 @@ tmonier_quick_order:
         too_many_lines: 'Demasiadas líneas: divida su pedido en lotes más pequeños.'
         file_rejected: 'No se ha podido leer el archivo: suba un archivo CSV dentro del límite de tamaño.'
         empty: 'Pegue al menos una línea o elija un archivo CSV.'
+        csv_columns: 'No se han reconocido las columnas del archivo CSV: llámelas SKU y QTY (o elimine la fila de encabezado: primero el código, después la cantidad).'
+        text_too_long: 'El texto pegado es demasiado largo: divídalo en lotes más pequeños.'
+        too_many_units: 'Demasiadas unidades de una vez: divida el pedido en lotes más pequeños.'
+        preview_expired: 'Esta vista previa ha caducado: vuelva a previsualizar sus líneas.'

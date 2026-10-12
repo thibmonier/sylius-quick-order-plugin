@@ -30,6 +30,14 @@ final class LineResult
         return new self($this->code, $this->requestedQuantity, $this->quantity, $status, $this->lineNumbers, $this->productName, $this->variantName, $addedQuantity, $this->available);
     }
 
+    /** Translation key (domain "messages") of the explanation of the status. */
+    public function getMessageKey(): string
+    {
+        $key = 'tmonier_quick_order.status.' . $this->status->value;
+
+        return LineStatus::InsufficientStock === $this->status && null !== $this->available ? $key . '_available' : $key;
+    }
+
     public function isRounded(): bool
     {
         return null !== $this->quantity && (string) $this->quantity !== $this->requestedQuantity;

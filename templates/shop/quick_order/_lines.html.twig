@@ -38,7 +38,7 @@
                                 {% if line.rounded and line.status.value in ['valid', 'added'] %}
                                     {{ 'tmonier_quick_order.ui.rounded'|trans({'%quantity%': line.quantity}) }}
                                 {% else %}
-                                    {{ ('tmonier_quick_order.status.' ~ line.status.value)|trans({'%quantity%': line.quantity, '%available%': line.available|default(0), '%added%': line.addedQuantity}) }}
+                                    {{ line.messageKey|trans({'%quantity%': line.quantity, '%available%': line.available|default(0), '%added%': line.addedQuantity}) }}
                                 {% endif %}
                             </div>
                         {% endif %}

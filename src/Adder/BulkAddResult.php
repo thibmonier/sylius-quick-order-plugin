@@ -14,6 +14,20 @@ final class BulkAddResult
 
     public const REFUSED_EMPTY = 'empty';
 
+    /** CSV header row whose code or quantity column is not recognised. */
+    public const REFUSED_CSV_COLUMNS = 'csv_columns';
+
+    public const REFUSED_TEXT_TOO_LONG = 'text_too_long';
+
+    /** More units than max_total_quantity in one request. */
+    public const REFUSED_TOO_MANY_UNITS = 'too_many_units';
+
+    /** The "add" step does not match the preview kept in the session. */
+    public const REFUSED_PREVIEW_EXPIRED = 'preview_expired';
+
+    /** @var list<string> */
+    public const INPUT_REFUSALS = [self::REFUSED_TOO_MANY_LINES, self::REFUSED_FILE, self::REFUSED_CSV_COLUMNS, self::REFUSED_TEXT_TOO_LONG];
+
     /** @param list<LineResult> $lines sorted by source line number */
     public function __construct(
         public readonly array $lines,

@@ -6,6 +6,7 @@ namespace Tmonier\SyliusQuickOrderPlugin\Adder;
 
 use Doctrine\Persistence\ObjectManager;
 use Sylius\Component\Core\Model\ChannelInterface;
+use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Model\ProductInterface;
@@ -20,6 +21,7 @@ use Tmonier\SyliusQuickOrderPlugin\Event\PostBulkAddEvent;
 use Tmonier\SyliusQuickOrderPlugin\Event\PreBulkAddEvent;
 use Tmonier\SyliusQuickOrderPlugin\Event\QuickOrderEvents;
 use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
+use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine;
 use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraintProviderInterface;
 use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityRounding;
 
@@ -45,6 +47,8 @@ final class BulkCartAdder implements BulkCartAdderInterface
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly int $quantityLimit,
         private readonly QuantityRounding $quantityRounding = QuantityRounding::Reject,
+        private readonly int $maxTotalQuantity = 10000,
+        private readonly bool $exposeAvailableStock = false,
     ) {
     }
 
@@ -110,7 +114,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
 
                 continue;
             }
-            $key = (string) $variants[$line->code]->getCode();
+            $key = self::variantKey($variants[$line->code]);
             $previous = $before[$key] ?? 0;
             $actual = $after[$key] ?? 0;
             if ($actual >= $previous + $line->quantity) {
@@ -148,11 +152,8 @@ final class BulkCartAdder implements BulkCartAdderInterface
     /** @return array{BulkAddResult, array<string, ProductVariantInterface>} */
     private function check(OrderInterface $cart, QuickOrderInput $input, BulkAddMode $mode): array
     {
-        if ($input->tooManyLines) {
-            return [BulkAddResult::refused(BulkAddResult::REFUSED_TOO_MANY_LINES, $mode), []];
-        }
-        if ($input->fileRejected) {
-            return [BulkAddResult::refused(BulkAddResult::REFUSED_FILE, $mode), []];
+        if (null !== $input->rejection) {
+            return [BulkAddResult::refused($input->rejection, $mode), []];
         }
         if ($input->isEmpty()) {
             return [BulkAddResult::refused(BulkAddResult::REFUSED_EMPTY, $mode), []];
@@ -162,31 +163,46 @@ final class BulkCartAdder implements BulkCartAdderInterface
         }
 
         $channel = $cart->getChannel();
-        $codes = array_map(static fn ($line): string => $line->code, $input->lines);
-        $variants = $this->variantLookup->findByCodes($codes);
+        $variants = $this->variantLookup->findByCodes(array_map(static fn (QuickOrderLine $line): string => $line->code, $input->lines));
+        // Visitors without an account cannot tell an unpublished or unpriced code from a typo.
+        $customer = $cart->getCustomer();
+        $detailed = $customer instanceof CustomerInterface && null !== $customer->getUser();
 
         $lines = [];
         foreach ($input->invalidLines as $invalidLine) {
-            $lines[] = new LineResult($invalidLine->code, $invalidLine->quantity, null, $invalidLine->status, [$invalidLine->lineNumber]);
+            $status = LineStatus::UnknownCode === $invalidLine->status && !$detailed ? LineStatus::NotAvailable : $invalidLine->status;
+            $lines[] = new LineResult($invalidLine->code, $invalidLine->quantity, null, $status, [$invalidLine->lineNumber]);
         }
 
-        // Lines resolved to the same variant (codes differing in case only) share the cart quantity.
-        $pending = [];
+        // Lines resolved to the same variant (codes differing in case only) become one line.
+        /** @var array<string, QuickOrderLine> $resolved */
+        $resolved = [];
         foreach ($input->lines as $line) {
             $variant = $variants[$line->code] ?? null;
             if (null === $variant || !$channel instanceof ChannelInterface) {
-                $lines[] = new LineResult($line->code, (string) $line->quantity, $line->quantity, LineStatus::UnknownCode, $line->lineNumbers);
+                $lines[] = new LineResult($line->code, (string) $line->quantity, $line->quantity, $detailed ? LineStatus::UnknownCode : LineStatus::NotAvailable, $line->lineNumbers);
 
                 continue;
             }
+            $key = self::variantKey($variant);
+            $resolved[$key] = isset($resolved[$key]) ? $resolved[$key]->withAddedQuantity($line->quantity, ...$line->lineNumbers) : $line;
+        }
 
-            $key = (string) $variant->getCode();
-            $existing = self::quantityInCart($cart, $variant) + ($pending[$key] ?? 0);
-            $line = $this->checkLine($line->code, $line->quantity, $line->lineNumbers, $variant, $channel, $existing);
-            if (LineStatus::Valid === $line->status && null !== $line->quantity) {
-                $pending[$key] = ($pending[$key] ?? 0) + $line->quantity;
+        $total = 0;
+        foreach ($resolved as $line) {
+            \assert($channel instanceof ChannelInterface);
+            $variant = $variants[$line->code];
+            $result = $this->checkLine($line, $variant, $channel, self::quantityInCart($cart, $variant));
+            if (!$detailed && \in_array($result->status, [LineStatus::Disabled, LineStatus::NotInChannel, LineStatus::NoChannelPricing], true)) {
+                $result = $result->withStatus(LineStatus::NotAvailable);
             }
-            $lines[] = $line;
+            if (LineStatus::Valid === $result->status) {
+                $total += (int) $result->quantity;
+            }
+            $lines[] = $result;
+        }
+        if ($total > $this->maxTotalQuantity) {
+            return [BulkAddResult::refused(BulkAddResult::REFUSED_TOO_MANY_UNITS, $mode), []];
         }
 
         usort($lines, static fn (LineResult $a, LineResult $b): int => $a->getFirstLineNumber() <=> $b->getFirstLineNumber());
@@ -194,20 +210,20 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return [new BulkAddResult($lines, false, null, $mode), $variants];
     }
 
-    /** @param list<int> $lineNumbers */
-    private function checkLine(string $code, int $quantity, array $lineNumbers, ProductVariantInterface $variant, ChannelInterface $channel, int $existing): LineResult
+    private function checkLine(QuickOrderLine $line, ProductVariantInterface $variant, ChannelInterface $channel, int $existing): LineResult
     {
         $product = $variant->getProduct();
-        $productName = $product?->getName();
-        $variantName = $variant->getName();
+        $quantity = $line->quantity;
+        $sellable = $product instanceof ProductInterface && $product->isEnabled() && $variant->isEnabled() && self::isSoldIn($product, $channel);
         $result = static fn (LineStatus $status, ?int $finalQuantity = null, ?int $available = null): LineResult => new LineResult(
-            $code,
-            (string) $quantity,
+            $line->code,
+            (string) $line->quantity,
             $finalQuantity ?? $quantity,
             $status,
-            $lineNumbers,
-            $productName,
-            $variantName,
+            $line->lineNumbers,
+            // Names of unpublished products are never shown.
+            $sellable ? $product->getName() : null,
+            $sellable ? $variant->getName() : null,
             0,
             $available,
         );
@@ -215,27 +231,28 @@ final class BulkCartAdder implements BulkCartAdderInterface
         if (!$product instanceof ProductInterface || !$product->isEnabled() || !$variant->isEnabled()) {
             return $result(LineStatus::Disabled);
         }
-        if (!self::isSoldIn($product, $channel)) {
+        if (!$sellable) {
             return $result(LineStatus::NotInChannel);
         }
         if (null === $variant->getChannelPricingForChannel($channel)?->getPrice()) {
             return $result(LineStatus::NoChannelPricing);
         }
 
+        // Constraints apply to the quantity the cart will hold, not to the added quantity.
         $constraint = $this->quantityConstraintProvider->getConstraint($variant, $channel);
-        if (null !== $constraint && !$constraint->isSatisfiedBy($quantity)) {
-            $rounded = QuantityRounding::RoundUp === $this->quantityRounding ? $constraint->roundUp($quantity) : null;
+        if (null !== $constraint && !$constraint->isSatisfiedBy($existing + $quantity)) {
+            $rounded = QuantityRounding::RoundUp === $this->quantityRounding ? $constraint->roundUp($existing + $quantity) : null;
             if (null === $rounded) {
                 return $result(LineStatus::QuantityConstraint);
             }
-            $quantity = $rounded;
+            $quantity = $rounded - $existing;
         }
 
         if ($existing + $quantity > $this->quantityLimit) {
             return $result(LineStatus::QuantityLimitExceeded, $quantity, max(0, $this->quantityLimit - $existing));
         }
         if (!$this->availabilityChecker->isStockSufficient($variant, $existing + $quantity)) {
-            $available = $variant->isTracked() ? max(0, (int) $variant->getOnHand() - (int) $variant->getOnHold() - $existing) : null;
+            $available = $this->exposeAvailableStock && $variant->isTracked() ? max(0, (int) $variant->getOnHand() - (int) $variant->getOnHold() - $existing) : null;
 
             return $result(LineStatus::InsufficientStock, $quantity, $available);
         }
@@ -300,7 +317,8 @@ final class BulkCartAdder implements BulkCartAdderInterface
     {
         $quantity = 0;
         foreach ($cart->getItems() as $item) {
-            if ($item->getVariant()?->getCode() === $variant->getCode()) {
+            $itemVariant = $item->getVariant();
+            if (null !== $itemVariant && self::variantKey($itemVariant) === self::variantKey($variant)) {
                 $quantity += $item->getQuantity();
             }
         }
@@ -308,14 +326,25 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return $quantity;
     }
 
-    /** @return array<string, int> quantities indexed by variant code */
+    /**
+     * The id when persisted (no lazy loading of cart item variants, and stable across entity
+     * manager clears), the code otherwise.
+     */
+    private static function variantKey(ProductVariantInterface $variant): string
+    {
+        $id = $variant->getId();
+
+        return null !== $id ? 'id:' . (\is_scalar($id) ? (string) $id : '') : 'code:' . $variant->getCode();
+    }
+
+    /** @return array<string, int> quantities indexed by variant key */
     private static function quantitiesByVariant(OrderInterface $cart): array
     {
         $quantities = [];
         foreach ($cart->getItems() as $item) {
             $variant = $item->getVariant();
             if (null !== $variant) {
-                $key = (string) $variant->getCode();
+                $key = self::variantKey($variant);
                 $quantities[$key] = ($quantities[$key] ?? 0) + $item->getQuantity();
             }
         }

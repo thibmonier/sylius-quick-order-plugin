@@ -4,24 +4,41 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusQuickOrderPlugin\Input;
 
+use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
+
 /**
  * Pasted text: one "CODE;qty", "CODE,qty" or "CODE<TAB>qty" (spreadsheet copy) per line. A space
  * separates the quantity only before the last token, since codes may contain spaces. A first
- * line that looks like a header (SKU, code...) is skipped.
+ * line that looks like a header (SKU, code...) is skipped. Texts longer than $maxLength bytes
+ * are refused before parsing; lines are read one by one and reading stops past max_lines.
  */
 final class PasteParser
 {
-    private const HEADER_CODES = '/^(sku|code|codes|product[ _-]?code|variant[ _-]?code|item|reference|ref|référence|artikel|artikelnummer|codice|kod)$/iu';
+    private const HEADER_CODES = '/^(sku|code|codes|product[ _-]?code|variant[ _-]?code|item|reference|ref|référence|artikel|artikelnummer|codice|código|codigo|kod)$/iu';
 
-    public function __construct(private readonly int $maxLines)
+    public function __construct(private readonly int $maxLines, private readonly int $maxLength = 1048576)
     {
     }
 
     public function parse(string $text): QuickOrderInput
     {
+        if (\strlen($text) > $this->maxLength) {
+            return QuickOrderInput::rejected(BulkAddResult::REFUSED_TEXT_TOO_LONG);
+        }
+
         $collector = new LineCollector($this->maxLines);
         $first = true;
-        foreach (preg_split('/\R/u', $text) ?: [$text] as $index => $line) {
+        $lineNumber = 0;
+        $offset = 0;
+        $length = \strlen($text);
+        while ($offset < $length && !$collector->isFull()) {
+            ++$lineNumber;
+            $end = strcspn($text, "\r\n", $offset);
+            $line = substr($text, $offset, $end);
+            $offset += $end;
+            // "\r\n", "\n" or "\r" ends the line.
+            $offset += "\r\n" === substr($text, $offset, 2) ? 2 : 1;
+
             if ('' === trim($line, " \t\u{A0}\u{FEFF}")) {
                 continue;
             }
@@ -32,7 +49,7 @@ final class PasteParser
                 continue;
             }
             $first = false;
-            $collector->add($index + 1, $code, $quantity);
+            $collector->add($lineNumber, $code, $quantity);
         }
 
         return $collector->getInput();
@@ -40,7 +57,7 @@ final class PasteParser
 
     public static function isHeader(string $code, ?string $quantity): bool
     {
-        return 1 === preg_match(self::HEADER_CODES, trim($code, " \t\"\u{FEFF}")) &&
+        return 1 === preg_match(self::HEADER_CODES, LineCollector::clean($code)) &&
             (null === $quantity || 1 !== preg_match('/^\s*\d/', $quantity));
     }
 
@@ -49,7 +66,11 @@ final class PasteParser
     {
         foreach (["\t", ';', ','] as $separator) {
             if (str_contains($line, $separator)) {
-                $cells = explode($separator, $line);
+                $cells = explode($separator, $line, 3);
+                // "ABC,1,000": a thousands group, not an extra column; refused as a quantity.
+                if (',' === $separator && isset($cells[1], $cells[2]) && 1 === preg_match('/^\d{3}(\D|$)/', trim($cells[2]))) {
+                    return [$cells[0], $cells[1] . ',' . $cells[2]];
+                }
 
                 return [$cells[0], $cells[1] ?? null];
             }

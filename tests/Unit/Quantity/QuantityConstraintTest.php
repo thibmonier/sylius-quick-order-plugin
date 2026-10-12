@@ -29,6 +29,8 @@ final class QuantityConstraintTest extends TestCase
         self::assertSame(24, $constraint->roundUp(24));
         self::assertNull($constraint->roundUp(25));
         self::assertSame(10, (new QuantityConstraint(10))->roundUp(3));
+        // No integer overflow.
+        self::assertNull((new QuantityConstraint(1, \PHP_INT_MAX))->roundUp(2));
     }
 
     public function testInvalidConstraintsAreRefused(): void

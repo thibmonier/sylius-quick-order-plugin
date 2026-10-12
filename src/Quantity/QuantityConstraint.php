@@ -30,6 +30,9 @@ final class QuantityConstraint
         $rounded = max($quantity, $this->minimum);
         $remainder = $rounded % $this->multipleOf;
         if (0 !== $remainder) {
+            if ($rounded > \PHP_INT_MAX - $this->multipleOf) {
+                return null;
+            }
             $rounded += $this->multipleOf - $remainder;
         }
 

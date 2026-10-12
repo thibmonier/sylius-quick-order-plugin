@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Tmonier\SyliusQuickOrderPlugin\Unit\Input;
 
 use PHPUnit\Framework\TestCase;
+use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 use Tmonier\SyliusQuickOrderPlugin\Input\CsvParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
@@ -46,6 +47,34 @@ final class CsvParserTest extends TestCase
         self::assertSame([['CODE, WITH COMMA', 2, [2]], ['ABC', 1, [5]]], self::summary($input));
     }
 
+    public function testWindows1252Headers(): void
+    {
+        $input = $this->parse(mb_convert_encoding("Référence;Quantité\nABC;12\n", 'Windows-1252', 'UTF-8'));
+
+        self::assertSame([['ABC', 12, [2]]], self::summary($input));
+    }
+
+    public function testAnUnrecognisedQuantityColumnRefusesTheFile(): void
+    {
+        // Never "1 of everything" because the quantity header has an unexpected name.
+        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("SKU;Pieces\nABC;12\n")->rejection);
+        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("Item no;Pieces\nABC;12\n")->rejection);
+        self::assertSame(BulkAddResult::REFUSED_CSV_COLUMNS, $this->parse("Pieces;QTY\nABC;12\n")->rejection);
+        self::assertSame([['ABC', 12, [2]]], self::summary($this->parse("Anzahl;Artikelnummer\n12;ABC\n")));
+    }
+
+    public function testCrOnlyLineEndings(): void
+    {
+        self::assertSame([['ABC', 1, [2]], ['DEF', 2, [3]], ['GHI', 3, [4]]], self::summary($this->parse("SKU,QTY\rABC,1\rDEF,2\rGHI,3\r")));
+    }
+
+    public function testThousandsSeparatorsAreRefused(): void
+    {
+        $input = $this->parse("SKU,QTY\nABC,\"1,000\"\n");
+
+        self::assertSame(LineStatus::InvalidQuantity, $input->invalidLines[0]->status);
+    }
+
     public function testWindows1252Codes(): void
     {
         $input = $this->parse("SKU;QTY\n" . mb_convert_encoding('CAFÉ-1', 'Windows-1252', 'UTF-8') . ";2\n");
@@ -63,15 +92,15 @@ final class CsvParserTest extends TestCase
 
     public function testTooBigOrBinaryFilesAreRejected(): void
     {
-        self::assertTrue((new CsvParser(200, 1024))->parse(str_repeat("ABC,1\n", 200))->fileRejected);
-        self::assertTrue($this->parse("PK\x03\x04\0\0binary")->fileRejected);
-        self::assertTrue((new CsvParser(200, 1024))->parseFile('/nonexistent/file.csv')->fileRejected);
+        self::assertSame(BulkAddResult::REFUSED_FILE, (new CsvParser(200, 1024))->parse(str_repeat("ABC,1\n", 200))->rejection);
+        self::assertSame(BulkAddResult::REFUSED_FILE, $this->parse("PK\x03\x04\0\0binary")->rejection);
+        self::assertSame(BulkAddResult::REFUSED_FILE, (new CsvParser(200, 1024))->parseFile('/nonexistent/file.csv')->rejection);
     }
 
     public function testTooManyRows(): void
     {
-        self::assertTrue((new CsvParser(2, 4096))->parse("SKU,QTY\nA,1\nB,1\nC,1\n")->tooManyLines);
-        self::assertFalse((new CsvParser(2, 4096))->parse("SKU,QTY\nA,1\nB,1\n")->tooManyLines);
+        self::assertSame(BulkAddResult::REFUSED_TOO_MANY_LINES, (new CsvParser(2, 4096))->parse("SKU,QTY\nA,1\nB,1\nC,1\n")->rejection);
+        self::assertNull((new CsvParser(2, 4096))->parse("SKU,QTY\nA,1\nB,1\n")->rejection);
     }
 
     public function testParseFile(): void

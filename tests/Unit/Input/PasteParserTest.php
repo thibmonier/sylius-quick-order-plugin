@@ -6,6 +6,7 @@ namespace Tests\Tmonier\SyliusQuickOrderPlugin\Unit\Input;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 use Tmonier\SyliusQuickOrderPlugin\Input\PasteParser;
 
@@ -23,8 +24,6 @@ final class PasteParserTest extends TestCase
         yield 'code with spaces and no quantity' => ['BOX OF SCREWS', 'BOX OF SCREWS', 1];
         yield 'no quantity' => ['ABC-1', 'ABC-1', 1];
         yield 'empty quantity' => ['ABC-1;', 'ABC-1', 1];
-        yield 'spreadsheet decimal' => ['ABC-1;3,00', 'ABC-1', 3];
-        yield 'spreadsheet decimal with dot' => ["ABC-1\t3.0", 'ABC-1', 3];
         yield 'leading zeros' => ['ABC-1;007', 'ABC-1', 7];
         yield 'quoted cells' => ["\"ABC-1\"\t\"3\"", 'ABC-1', 3];
         yield 'surrounding blanks and non-breaking space' => ["  ABC-1 ;\u{A0}3  ", 'ABC-1', 3];
@@ -67,14 +66,51 @@ final class PasteParserTest extends TestCase
         self::assertSame(4, $input->lines[0]->quantity);
     }
 
-    public function testItMergesDuplicatesCaseInsensitively(): void
+    public function testItMergesExactDuplicatesOnly(): void
     {
-        $input = (new PasteParser(200))->parse("ABC-1;2\nXYZ;1\nabc-1;3");
+        $input = (new PasteParser(200))->parse("ABC-1;2\nXYZ;1\nABC-1;3\nabc-1;4");
 
-        self::assertCount(2, $input->lines);
-        self::assertSame('ABC-1', $input->lines[0]->code);
-        self::assertSame(5, $input->lines[0]->quantity);
-        self::assertSame([1, 3], $input->lines[0]->lineNumbers);
+        // Codes differing in case are merged later, if they resolve to the same variant.
+        self::assertSame([['ABC-1', 5, [1, 3]], ['XYZ', 1, [2]], ['abc-1', 4, [4]]], array_map(static fn ($line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function ambiguousQuantities(): iterable
+    {
+        yield 'German thousands' => ['ABC;1.000'];
+        yield 'English thousands' => ['ABC;"1,000"'];
+        yield 'English thousands, comma separator' => ['ABC,1,000'];
+        yield 'space thousands' => ["ABC\t1 000"];
+        yield 'decimal zero' => ['ABC;12.0'];
+        yield 'decimal comma' => ['ABC;12,00'];
+    }
+
+    #[DataProvider('ambiguousQuantities')]
+    public function testQuantitiesWithSeparatorsAreRefusedNotGuessed(string $text): void
+    {
+        $input = (new PasteParser(200))->parse($text);
+
+        self::assertSame([], $input->lines);
+        self::assertSame(LineStatus::InvalidQuantity, $input->invalidLines[0]->status);
+    }
+
+    public function testCrOnlyLineEndings(): void
+    {
+        self::assertSame([1, 2, 4], array_map(static fn ($line): int => $line->lineNumbers[0], (new PasteParser(200))->parse("A;1\rB;2\r\rC;3")->lines));
+    }
+
+    public function testTooLongTextsAreRefusedBeforeParsing(): void
+    {
+        self::assertSame(BulkAddResult::REFUSED_TEXT_TOO_LONG, (new PasteParser(1000, 1000))->parse(str_repeat("ab\n", 400))->rejection);
+        self::assertNull((new PasteParser(1000, 1000))->parse(str_repeat("ab\n", 300))->rejection);
+    }
+
+    public function testHugeQuantitiesAreRefused(): void
+    {
+        $input = (new PasteParser(200))->parse("A;999999999\nB;1000000000");
+
+        self::assertSame(999999999, $input->lines[0]->quantity);
+        self::assertSame(LineStatus::InvalidQuantity, $input->invalidLines[0]->status);
     }
 
     /** @return iterable<string, array{string, LineStatus}> */
@@ -105,9 +141,9 @@ final class PasteParserTest extends TestCase
     {
         $parser = new PasteParser(3);
 
-        self::assertFalse($parser->parse("A;1\nB;1\nC;1")->isRejected());
-        $input = $parser->parse("A;1\nB;1\nC;1\nD;1");
-        self::assertTrue($input->tooManyLines);
+        self::assertNull($parser->parse("A;1\nB;1\nC;1")->rejection);
+        $input = $parser->parse("A;1\nB;1\nC;1\nD;1" . str_repeat("\nE;1", 1000));
+        self::assertSame(BulkAddResult::REFUSED_TOO_MANY_LINES, $input->rejection);
         self::assertSame([], $input->lines);
     }
 

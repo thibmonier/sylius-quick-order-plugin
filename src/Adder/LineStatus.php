@@ -30,6 +30,12 @@ enum LineStatus: string
     case QuantityLimitExceeded = 'quantity_limit_exceeded';
     case QuantityConstraint = 'quantity_constraint';
 
+    /**
+     * Unknown, disabled, not sold in the channel or without price, for carts of visitors
+     * without an account: they cannot tell an unpublished code from a typo.
+     */
+    case NotAvailable = 'not_available';
+
     public function isError(): bool
     {
         return !\in_array($this, [self::Valid, self::Added, self::Adjusted, self::Skipped], true);

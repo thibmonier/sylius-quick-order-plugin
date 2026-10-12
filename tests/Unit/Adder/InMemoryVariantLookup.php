@@ -19,6 +19,11 @@ final class InMemoryVariantLookup implements VariantLookupInterface
         $this->variants[(string) $variant->getCode()] = $variant;
     }
 
+    public function alias(string $code, ProductVariantInterface $variant): void
+    {
+        $this->variants[$code] = $variant;
+    }
+
     public function findByCodes(array $codes): array
     {
         ++$this->calls;

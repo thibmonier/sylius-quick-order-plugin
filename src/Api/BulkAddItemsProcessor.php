@@ -60,7 +60,8 @@ final class BulkAddItemsProcessor implements ProcessorInterface
         }
 
         $result = $this->bulkCartAdder->add($cart, $collector->getInput(), $mode);
-        if (null !== $result->refusal && [] === $result->lines) {
+        // Whole-request refusals (input, locked cart, pre_bulk_add listeners) are client errors.
+        if (null !== $result->refusal) {
             throw new UnprocessableEntityHttpException(\sprintf('Refused: %s.', $result->refusal));
         }
 

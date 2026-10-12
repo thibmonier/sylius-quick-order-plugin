@@ -6,3 +6,7 @@ tmonier_quick_order:
         too_many_lines: 'Troppe righe: dividi l''ordine in lotti più piccoli.'
         file_rejected: 'Impossibile leggere il file: carica un file CSV entro il limite di dimensione.'
         empty: 'Incolla almeno una riga o scegli un file CSV.'
+        csv_columns: 'Le colonne del file CSV non sono state riconosciute: chiamale SKU e QTY (oppure elimina la riga di intestazione: prima il codice, poi la quantità).'
+        text_too_long: 'Il testo incollato è troppo lungo: dividilo in lotti più piccoli.'
+        too_many_units: 'Troppe unità in una volta: dividi l''ordine in lotti più piccoli.'
+        preview_expired: 'Questa anteprima è scaduta: rifai l''anteprima delle righe.'

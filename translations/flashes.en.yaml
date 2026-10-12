@@ -6,3 +6,7 @@ tmonier_quick_order:
         too_many_lines: 'Too many lines: split your order into smaller batches.'
         file_rejected: 'The file could not be read: upload a CSV file within the size limit.'
         empty: 'Paste at least one line or choose a CSV file.'
+        csv_columns: 'The columns of the CSV file were not recognised: name them SKU and QTY (or remove the header row: code first, then quantity).'
+        text_too_long: 'The pasted text is too long: split it into smaller batches.'
+        too_many_units: 'Too many units in one order: split it into smaller batches.'
+        preview_expired: 'This preview has expired: preview your lines again.'

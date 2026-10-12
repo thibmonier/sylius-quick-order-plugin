@@ -46,7 +46,7 @@ final class CsvWriter
     public static function message(LineResult $line): array
     {
         return [
-            'tmonier_quick_order.status.' . $line->status->value,
+            $line->getMessageKey(),
             ['%quantity%' => (string) $line->quantity, '%available%' => (string) ($line->available ?? 0), '%added%' => $line->addedQuantity],
             'messages',
         ];

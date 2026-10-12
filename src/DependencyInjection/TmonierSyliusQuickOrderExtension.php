@@ -14,7 +14,7 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{max_lines: int, max_file_size: int, default_mode: string, allow_guests: bool, quantity_rounding: string} $config */
+        /** @var array{max_lines: int, max_total_quantity: int, expose_available_stock: bool, max_file_size: int, default_mode: string, allow_guests: bool, quantity_rounding: string} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         foreach ($config as $key => $value) {
