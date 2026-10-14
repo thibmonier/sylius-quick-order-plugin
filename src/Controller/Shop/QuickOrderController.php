@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
@@ -27,6 +28,7 @@ use Tmonier\SyliusQuickOrderPlugin\Input\PasteParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixActivationCheckerInterface;
 use Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface;
+use Tmonier\SyliusQuickOrderPlugin\RateLimit\RateLimitKeys;
 use Tmonier\SyliusQuickOrderPlugin\Reorder\ReorderInputFactory;
 use Tmonier\SyliusQuickOrderPlugin\Report\CsvWriter;
 use Tmonier\SyliusQuickOrderPlugin\Twig\Component\MatrixOrderComponent;
@@ -69,6 +71,7 @@ final class QuickOrderController extends AbstractController
         private readonly ?RepositoryInterface $productRepository = null,
         private readonly ?MatrixActivationCheckerInterface $matrixActivationChecker = null,
         private readonly ?MatrixOrderHandlerInterface $matrixOrderHandler = null,
+        private readonly ?RateLimiterFactory $ipLimiter = null,
     ) {
     }
 
@@ -88,6 +91,11 @@ final class QuickOrderController extends AbstractController
         }
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
             return $this->redirectWithError('tmonier_quick_order.invalid_csrf_token');
+        }
+        if ($this->isRateLimited($request)) {
+            return $this->render('@TmonierSyliusQuickOrderPlugin/shop/quick_order/index.html.twig', $this->viewParameters([
+                'error' => 'tmonier_quick_order.too_many_requests',
+            ]), new Response(null, Response::HTTP_TOO_MANY_REQUESTS));
         }
 
         $text = (string) $request->request->get('lines', '');
@@ -121,6 +129,14 @@ final class QuickOrderController extends AbstractController
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
             return $this->redirectWithError('tmonier_quick_order.invalid_csrf_token');
         }
+        if ($this->isRateLimited($request)) {
+            $text = (string) $request->request->get('lines', '');
+
+            return $this->render('@TmonierSyliusQuickOrderPlugin/shop/quick_order/index.html.twig', $this->viewParameters([
+                'error' => 'tmonier_quick_order.too_many_requests',
+                'lines' => \strlen($text) <= $this->maxFileSize ? $text : '',
+            ]), new Response(null, Response::HTTP_TOO_MANY_REQUESTS));
+        }
 
         $json = $this->takePreview($request, (string) $request->request->get('preview', ''));
         if (null === $json) {
@@ -151,6 +167,13 @@ final class QuickOrderController extends AbstractController
         if (!$order instanceof OrderInterface || $order->getChannel() !== $this->channelContext->getChannel()) {
             throw new NotFoundHttpException('Order not found.');
         }
+        if ($this->isRateLimited($request)) {
+            // reorderAction always redirects; a 429 render is not possible here. The flash
+            // communicates the refusal; the redirect goes to the quick order index.
+            $this->addFlash('error', 'tmonier_quick_order.too_many_requests');
+
+            return $this->redirectToRoute('tmonier_quick_order_shop_index');
+        }
 
         return $this->addAndRedirect($request, $this->reorderInputFactory->create($order), BulkAddMode::Partial);
     }
@@ -171,6 +194,14 @@ final class QuickOrderController extends AbstractController
         $productPage = $this->generateUrl('sylius_shop_product_show', ['slug' => $product->getSlug()]) . '#tmonier-quick-order-matrix';
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
             $this->addFlash('error', 'tmonier_quick_order.invalid_csrf_token');
+
+            return $this->redirect($productPage);
+        }
+
+        if ($this->isRateLimited($request)) {
+            // matrixAddAction always returns RedirectResponse; a 429 render is not possible here.
+            // The flash communicates the refusal; the redirect goes back to the product page.
+            $this->addFlash('error', 'tmonier_quick_order.too_many_requests');
 
             return $this->redirect($productPage);
         }
@@ -359,6 +390,16 @@ final class QuickOrderController extends AbstractController
             'max_file_size' => $this->maxFileSize,
             'csrf_id' => self::CSRF_ID,
         ];
+    }
+
+    /** Consumes one token from the IP limiter; returns true when the request must be rejected. */
+    private function isRateLimited(Request $request): bool
+    {
+        if (!$this->ipLimiter instanceof RateLimiterFactory) {
+            return false;
+        }
+
+        return !$this->ipLimiter->create(RateLimitKeys::ip($request->getClientIp()))->consume()->isAccepted();
     }
 
     private function csvResponse(string $csv, string $filename): Response

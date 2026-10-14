@@ -29,6 +29,11 @@ trait QuickOrderTestTrait
         $this->client->disableReboot();
         $this->connection()->beginTransaction();
         $this->catalog = new TestCatalog(self::getContainer());
+
+        // Rate limiter state of the previous tests.
+        $pool = self::getContainer()->get('cache.tmonier_quick_order_limiter');
+        self::assertInstanceOf(\Psr\Cache\CacheItemPoolInterface::class, $pool);
+        $pool->clear();
     }
 
     protected function tearDown(): void

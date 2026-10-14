@@ -47,6 +47,16 @@ parameters:
 
 tmonier_sylius_quick_order:
     allow_guests: '%env(bool:TMONIER_QUICK_ORDER_ALLOW_GUESTS)%'
+    rate_limit:
+        per_ip: 15
+        cache_pool: cache.tmonier_quick_order_limiter
+
+framework:
+    cache:
+        pools:
+            # Filesystem pool (an array pool is reset between requests); cleared by every functional test setUp.
+            cache.tmonier_quick_order_limiter:
+                adapter: cache.adapter.filesystem
 
 # Test-only settings and hookables (not in the dev demo).
 when@test:

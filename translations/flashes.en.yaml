@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'Your session has expired, please try again.'
     lines_added: '%count% line(s) added to your cart.'
+    too_many_requests: 'Too many requests: please try again later.'
     refusal:
         cart_locked: 'Your cart cannot be changed right now (for example, it holds an accepted quote).'
         too_many_lines: 'Too many lines: split your order into smaller batches.'

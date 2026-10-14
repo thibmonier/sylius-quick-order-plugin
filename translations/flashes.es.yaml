@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'Su sesión ha caducado, inténtelo de nuevo.'
     lines_added: '%count% línea(s) añadida(s) al carrito.'
+    too_many_requests: 'Demasiadas solicitudes: inténtelo de nuevo más tarde.'
     refusal:
         cart_locked: 'Su carrito no puede modificarse en este momento (por ejemplo, contiene un presupuesto aceptado).'
         too_many_lines: 'Demasiadas líneas: divida su pedido en lotes más pequeños.'

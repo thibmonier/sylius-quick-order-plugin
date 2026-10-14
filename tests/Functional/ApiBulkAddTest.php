@@ -143,6 +143,28 @@ final class ApiBulkAddTest extends WebTestCase
         self::assertStringContainsString('budget_exceeded', (string) $this->client->getResponse()->getContent());
     }
 
+    public function testApiSubmissionsAreLimitedPerIp(): void
+    {
+        // The test application allows 15 submissions per IP (shared with the HTML endpoints).
+        $code = (string) $this->catalog->variant('QO-A-' . $this->catalog->suffix)->getCode();
+        $cart = $this->catalog->cart();
+        $body = ['lines' => [['code' => $code, 'quantity' => 1]]];
+
+        for ($i = 1; $i <= 15; ++$i) {
+            $this->bulkAdd($cart, $body);
+            self::assertResponseIsSuccessful(\sprintf('API request %d should succeed.', $i));
+        }
+
+        // The 16th API call is rate-limited: TooManyRequestsHttpException → 429.
+        $this->bulkAdd($cart, $body);
+        self::assertResponseStatusCodeSame(429);
+
+        // Nothing was added on the 16th call.
+        $this->entityManager()->clear();
+        $reloaded = $this->entityManager()->find(OrderInterface::class, $cart->getId());
+        self::assertSame(15, self::quantities($reloaded)[$code] ?? 0, '15 items added, none on the rejected call.');
+    }
+
     public function testTheOperationIsDocumented(): void
     {
         $this->client->request('GET', '/api/v2/docs.jsonopenapi', server: ['HTTP_ACCEPT' => 'application/vnd.openapi+json']);

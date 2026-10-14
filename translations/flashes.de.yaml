@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'Ihre Sitzung ist abgelaufen, bitte versuchen Sie es erneut.'
     lines_added: '%count% Zeile(n) in den Warenkorb gelegt.'
+    too_many_requests: 'Zu viele Anfragen: Bitte versuchen Sie es später erneut.'
     refusal:
         cart_locked: 'Ihr Warenkorb kann derzeit nicht geändert werden (er enthält z. B. ein angenommenes Angebot).'
         too_many_lines: 'Zu viele Zeilen: Teilen Sie Ihre Bestellung in kleinere Teile auf.'

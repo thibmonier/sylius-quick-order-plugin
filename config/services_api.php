@@ -19,6 +19,8 @@ return static function (ContainerConfigurator $container): void {
             param('tmonier_quick_order.default_mode'),
             param('tmonier_quick_order.max_lines'),
             param('tmonier_quick_order.max_total_quantity'),
+            service('limiter.tmonier_quick_order_ip')->nullOnInvalid(),
+            service('request_stack'),
         ])
         ->tag('api_platform.state_processor')
     ;

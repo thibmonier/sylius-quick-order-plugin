@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'Votre session a expiré, veuillez réessayer.'
     lines_added: '%count% ligne(s) ajoutée(s) au panier.'
+    too_many_requests: 'Trop de requêtes : veuillez réessayer plus tard.'
     refusal:
         cart_locked: 'Votre panier ne peut pas être modifié pour le moment (par exemple, il contient un devis accepté).'
         too_many_lines: 'Trop de lignes : découpez votre commande en lots plus petits.'
