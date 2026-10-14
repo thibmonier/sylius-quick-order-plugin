@@ -34,11 +34,15 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 
     public function prepend(ContainerBuilder $container): void
     {
-        // prependExtensionConfig for the rate limiter must happen here (prepend phase), before
-        // FrameworkBundle loads — calling it inside load() is too late and the limiter service
-        // would never be created.
+        // The rate limiter must be added to the framework configuration here (prepend phase): in
+        // load() it is too late and the limiter service is never created. Only the rate_limit
+        // node is processed: the other values may still be unresolved env placeholders
+        // (e.g. allow_guests: '%env(bool:...)%'), which the boolean nodes reject at this stage.
         /** @var array{rate_limit: array{enabled: bool, per_ip: int, interval: string, cache_pool: string}} $config */
-        $config = $this->processConfiguration(new Configuration(), $container->getExtensionConfig($this->getAlias()));
+        $config = $this->processConfiguration(new Configuration(), array_map(
+            static fn (array $config): array => isset($config['rate_limit']) ? ['rate_limit' => $config['rate_limit']] : [],
+            $container->getExtensionConfig($this->getAlias()),
+        ));
 
         if ($config['rate_limit']['enabled'] && class_exists(RateLimiterFactory::class)) {
             $limiter = [
