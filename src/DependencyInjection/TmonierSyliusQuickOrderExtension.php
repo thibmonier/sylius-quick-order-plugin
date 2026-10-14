@@ -25,6 +25,21 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
             $container->setParameter('tmonier_quick_order.matrix.' . $key, $value);
         }
 
+        $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
+        $loader->load('services.php');
+        if ($this->hasApiPlatform($container)) {
+            $loader->load('services_api.php');
+        }
+    }
+
+    public function prepend(ContainerBuilder $container): void
+    {
+        // prependExtensionConfig for the rate limiter must happen here (prepend phase), before
+        // FrameworkBundle loads — calling it inside load() is too late and the limiter service
+        // would never be created.
+        /** @var array{rate_limit: array{enabled: bool, per_ip: int, interval: string, cache_pool: string}} $config */
+        $config = $this->processConfiguration(new Configuration(), $container->getExtensionConfig($this->getAlias()));
+
         if ($config['rate_limit']['enabled'] && class_exists(RateLimiterFactory::class)) {
             $limiter = [
                 'policy' => 'sliding_window',
@@ -41,15 +56,6 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
             ]]);
         }
 
-        $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
-        $loader->load('services.php');
-        if ($this->hasApiPlatform($container)) {
-            $loader->load('services_api.php');
-        }
-    }
-
-    public function prepend(ContainerBuilder $container): void
-    {
         // The tier price table of tmonier/sylius-tier-pricing-plugin is a child of the core add
         // to cart form, which matrix products do not show: render it there when every variant has
         // the same tiers, else a note (see the template).
