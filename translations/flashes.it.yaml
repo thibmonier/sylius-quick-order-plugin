@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'La sessione è scaduta, riprova.'
     lines_added: '%count% riga/e aggiunta/e al carrello.'
+    too_many_requests: 'Troppe richieste: riprova più tardi.'
     refusal:
         cart_locked: 'Il carrello non può essere modificato al momento (ad esempio, contiene un preventivo accettato).'
         too_many_lines: 'Troppe righe: dividi l''ordine in lotti più piccoli.'

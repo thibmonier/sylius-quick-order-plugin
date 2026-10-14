@@ -11,14 +11,18 @@ use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\ShopUserInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 use Tmonier\SyliusQuickOrderPlugin\Api\Resource\BulkAddItemsToCart;
 use Tmonier\SyliusQuickOrderPlugin\Input\LineCollector;
+use Tmonier\SyliusQuickOrderPlugin\RateLimit\RateLimitKeys;
 
 /** @implements ProcessorInterface<BulkAddItemsToCart, BulkAddItemsResult> */
 final readonly class BulkAddItemsProcessor implements ProcessorInterface
@@ -32,11 +36,20 @@ final readonly class BulkAddItemsProcessor implements ProcessorInterface
         private string $defaultMode,
         private int $maxLines,
         private int $maxTotalQuantity = 20000,
+        private readonly ?RateLimiterFactory $ipLimiter = null,
+        private readonly ?RequestStack $requestStack = null,
     ) {
     }
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): BulkAddItemsResult
     {
+        if ($this->ipLimiter instanceof RateLimiterFactory) {
+            $ip = $this->requestStack?->getCurrentRequest()?->getClientIp();
+            if (!$this->ipLimiter->create(RateLimitKeys::ip($ip))->consume()->isAccepted()) {
+                throw new TooManyRequestsHttpException(message: 'too_many_requests');
+            }
+        }
+
         $tokenValue = $uriVariables['tokenValue'] ?? null;
 
         $cart = \is_string($tokenValue) ? $this->orderRepository->findCartByTokenValue($tokenValue) : null;

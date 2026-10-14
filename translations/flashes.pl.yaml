@@ -1,6 +1,7 @@
 tmonier_quick_order:
     invalid_csrf_token: 'Sesja wygasła, spróbuj ponownie.'
     lines_added: 'Dodano wiersze do koszyka: %count%.'
+    too_many_requests: 'Zbyt wiele żądań: spróbuj ponownie później.'
     refusal:
         cart_locked: 'Koszyka nie można teraz zmienić (na przykład zawiera zaakceptowaną ofertę).'
         too_many_lines: 'Za dużo wierszy: podziel zamówienie na mniejsze części.'

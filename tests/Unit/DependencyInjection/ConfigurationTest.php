@@ -21,6 +21,12 @@ final class ConfigurationTest extends TestCase
             'default_mode' => 'partial',
             'allow_guests' => true,
             'quantity_rounding' => 'reject',
+            'rate_limit' => [
+                'enabled' => true,
+                'per_ip' => 60,
+                'interval' => '1 hour',
+                'cache_pool' => 'cache.rate_limiter',
+            ],
             'matrix' => [
                 'enabled' => true,
                 'auto' => true,

@@ -287,6 +287,24 @@ final class ShopQuickOrderTest extends WebTestCase
         self::assertSelectorExists('a[href="' . $this->url('/quick-order') . '"]');
     }
 
+    public function testSubmissionsAreLimitedPerIp(): void
+    {
+        // The test application allows 15 submissions per IP (shared across all POST endpoints).
+        $code = (string) $this->catalog->variant('QO-A-' . $this->catalog->suffix)->getCode();
+        $crawler = $this->client->request('GET', $this->url('/quick-order'));
+        $form = $crawler->filter('[data-test-tmonier-quick-order-preview]')->form();
+
+        for ($i = 1; $i <= 15; ++$i) {
+            $this->client->submit($form, ['lines' => $code . ';1']);
+            self::assertResponseIsSuccessful(\sprintf('Preview request %d should succeed.', $i));
+        }
+
+        // The 16th preview is rate-limited: 429 with the quick order page, nothing added.
+        $this->client->submit($form, ['lines' => $code . ';1']);
+        self::assertResponseStatusCodeSame(429);
+        self::assertNull($this->sessionCart(), 'Nothing is added to the cart when rate-limited.');
+    }
+
     private function preview(string $lines, string $mode = 'partial'): Crawler
     {
         $crawler = $this->client->request('GET', $this->url('/quick-order'));
