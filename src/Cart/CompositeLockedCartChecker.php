@@ -6,10 +6,10 @@ namespace Tmonier\SyliusQuickOrderPlugin\Cart;
 
 use Sylius\Component\Core\Model\OrderInterface;
 
-final class CompositeLockedCartChecker implements LockedCartCheckerInterface
+final readonly class CompositeLockedCartChecker implements LockedCartCheckerInterface
 {
     /** @param iterable<LockedCartCheckerInterface> $checkers */
-    public function __construct(private readonly iterable $checkers)
+    public function __construct(private iterable $checkers)
     {
     }
 

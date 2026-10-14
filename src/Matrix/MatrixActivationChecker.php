@@ -11,19 +11,19 @@ use Sylius\Component\Core\Model\ProductVariantInterface;
  * No field on Product: configuration lists first, then an optional checkbox attribute, then the
  * automatic rule "1 or 2 options and at most max_variants enabled variants".
  */
-final class MatrixActivationChecker implements MatrixActivationCheckerInterface
+final readonly class MatrixActivationChecker implements MatrixActivationCheckerInterface
 {
     /**
      * @param list<string> $products
      * @param list<string> $excludedProducts
      */
     public function __construct(
-        private readonly bool $enabled,
-        private readonly bool $auto,
-        private readonly int $maxVariants,
-        private readonly array $products = [],
-        private readonly array $excludedProducts = [],
-        private readonly ?string $attribute = null,
+        private bool $enabled,
+        private bool $auto,
+        private int $maxVariants,
+        private array $products = [],
+        private array $excludedProducts = [],
+        private ?string $attribute = null,
     ) {
     }
 

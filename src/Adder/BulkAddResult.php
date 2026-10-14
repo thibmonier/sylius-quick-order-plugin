@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tmonier\SyliusQuickOrderPlugin\Adder;
 
-final class BulkAddResult
+final readonly class BulkAddResult
 {
     public const REFUSED_CART_LOCKED = 'cart_locked';
 
@@ -30,10 +30,10 @@ final class BulkAddResult
 
     /** @param list<LineResult> $lines sorted by source line number */
     public function __construct(
-        public readonly array $lines,
-        public readonly bool $applied = false,
-        public readonly ?string $refusal = null,
-        public readonly BulkAddMode $mode = BulkAddMode::Partial,
+        public array $lines,
+        public bool $applied = false,
+        public ?string $refusal = null,
+        public BulkAddMode $mode = BulkAddMode::Partial,
     ) {
     }
 

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Quantity;
 
 /** Quantity rules of a variant (minimum, pack size, maximum), e.g. from a logistics plugin. */
-final class QuantityConstraint
+final readonly class QuantityConstraint
 {
     public function __construct(
-        public readonly int $minimum = 1,
-        public readonly int $multipleOf = 1,
-        public readonly ?int $maximum = null,
+        public int $minimum = 1,
+        public int $multipleOf = 1,
+        public ?int $maximum = null,
     ) {
         if ($minimum < 1 || $multipleOf < 1 || (null !== $maximum && $maximum < $minimum)) {
             throw new \InvalidArgumentException('Invalid quantity constraint.');

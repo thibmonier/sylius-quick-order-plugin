@@ -20,13 +20,13 @@ use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraintProviderInterface;
  * price, and the Omnibus "lowest price before discount" is given for discounted variants only
  * (null when the channel does not show it).
  */
-final class MatrixBuilder implements MatrixBuilderInterface
+final readonly class MatrixBuilder implements MatrixBuilderInterface
 {
     public function __construct(
-        private readonly ProductVariantPricesCalculatorInterface $priceCalculator,
-        private readonly AvailabilityCheckerInterface $availabilityChecker,
-        private readonly QuantityConstraintProviderInterface $quantityConstraintProvider,
-        private readonly int $maxGridCells,
+        private ProductVariantPricesCalculatorInterface $priceCalculator,
+        private AvailabilityCheckerInterface $availabilityChecker,
+        private QuantityConstraintProviderInterface $quantityConstraintProvider,
+        private int $maxGridCells,
     ) {
     }
 
@@ -45,7 +45,7 @@ final class MatrixBuilder implements MatrixBuilderInterface
         $options = array_values($product->getOptions()->toArray());
         if (2 === \count($options)) {
             $grid = $this->grid($options, $variants, $cells);
-            if (null !== $grid) {
+            if ($grid instanceof \Tmonier\SyliusQuickOrderPlugin\Matrix\Matrix) {
                 return $grid;
             }
         }
@@ -60,13 +60,13 @@ final class MatrixBuilder implements MatrixBuilderInterface
      */
     private function grid(array $options, array $variants, array $cells): ?Matrix
     {
-        $rows = self::values($options[0]);
-        $columns = self::values($options[1]);
+        $rows = $this->values($options[0]);
+        $columns = $this->values($options[1]);
 
         $grid = [];
         foreach ($variants as $index => $variant) {
-            $row = self::valueOf($variant, $options[0]);
-            $column = self::valueOf($variant, $options[1]);
+            $row = $this->valueOf($variant, $options[0]);
+            $column = $this->valueOf($variant, $options[1]);
             // A variant without both values, or two variants in one cell: a list is safer.
             if (null === $row || null === $column || isset($grid[$row][$column])) {
                 return null;
@@ -123,7 +123,7 @@ final class MatrixBuilder implements MatrixBuilderInterface
     }
 
     /** @return list<array{code: string, label: string}> */
-    private static function values(ProductOptionInterface $option): array
+    private function values(ProductOptionInterface $option): array
     {
         $values = [];
         foreach ($option->getValues() as $value) {
@@ -133,7 +133,7 @@ final class MatrixBuilder implements MatrixBuilderInterface
         return $values;
     }
 
-    private static function valueOf(ProductVariantInterface $variant, ProductOptionInterface $option): ?string
+    private function valueOf(ProductVariantInterface $variant, ProductOptionInterface $option): ?string
     {
         foreach ($variant->getOptionValues() as $value) {
             if ($value->getOption() === $option || $value->getOptionCode() === $option->getCode()) {

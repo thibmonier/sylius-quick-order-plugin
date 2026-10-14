@@ -32,23 +32,23 @@ use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityRounding;
  * Line statuses are computed after the processing, which may remove or change items
  * (unavailable variants, other plugins' processors).
  */
-final class BulkCartAdder implements BulkCartAdderInterface
+final readonly class BulkCartAdder implements BulkCartAdderInterface
 {
     /** @param FactoryInterface<OrderItemInterface> $cartItemFactory */
     public function __construct(
-        private readonly VariantLookupInterface $variantLookup,
-        private readonly AvailabilityCheckerInterface $availabilityChecker,
-        private readonly QuantityConstraintProviderInterface $quantityConstraintProvider,
-        private readonly LockedCartCheckerInterface $lockedCartChecker,
-        private readonly FactoryInterface $cartItemFactory,
-        private readonly OrderItemQuantityModifierInterface $orderItemQuantityModifier,
-        private readonly OrderProcessorInterface $orderProcessor,
-        private readonly ObjectManager $orderManager,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly int $quantityLimit,
-        private readonly QuantityRounding $quantityRounding = QuantityRounding::Reject,
-        private readonly int $maxTotalQuantity = 20000,
-        private readonly bool $exposeAvailableStock = false,
+        private VariantLookupInterface $variantLookup,
+        private AvailabilityCheckerInterface $availabilityChecker,
+        private QuantityConstraintProviderInterface $quantityConstraintProvider,
+        private LockedCartCheckerInterface $lockedCartChecker,
+        private FactoryInterface $cartItemFactory,
+        private OrderItemQuantityModifierInterface $orderItemQuantityModifier,
+        private OrderProcessorInterface $orderProcessor,
+        private ObjectManager $orderManager,
+        private EventDispatcherInterface $eventDispatcher,
+        private int $quantityLimit,
+        private QuantityRounding $quantityRounding = QuantityRounding::Reject,
+        private int $maxTotalQuantity = 20000,
+        private bool $exposeAvailableStock = false,
     ) {
     }
 
@@ -67,17 +67,17 @@ final class BulkCartAdder implements BulkCartAdderInterface
         $event = new PreBulkAddEvent($cart, $result->lines, $mode);
         $this->eventDispatcher->dispatch($event, QuickOrderEvents::PRE_BULK_ADD);
         if (null !== $event->getRefusal()) {
-            return new BulkAddResult(self::skipValidLines($result->lines), false, $event->getRefusal(), $mode);
+            return new BulkAddResult($this->skipValidLines($result->lines), false, $event->getRefusal(), $mode);
         }
 
         if ([] === $result->getLinesWithStatus(LineStatus::Valid)) {
             return $result;
         }
         if (BulkAddMode::AllOrNothing === $mode && [] !== $result->getErrors()) {
-            return new BulkAddResult(self::skipValidLines($result->lines), false, null, $mode);
+            return new BulkAddResult($this->skipValidLines($result->lines), false, null, $mode);
         }
 
-        $before = self::quantitiesByVariant($cart);
+        $before = $this->quantitiesByVariant($cart);
         /** @var list<OrderItemInterface> $newItems */
         $newItems = [];
         /** @var list<array{OrderItemInterface, int}> $changedItems */
@@ -92,8 +92,8 @@ final class BulkCartAdder implements BulkCartAdderInterface
             $item->setVariant($variant);
             $this->orderItemQuantityModifier->modify($item, $line->quantity);
 
-            $existing = self::findEqualItem($cart, $item);
-            if (null === $existing) {
+            $existing = $this->findEqualItem($cart, $item);
+            if (!$existing instanceof \Sylius\Component\Core\Model\OrderItemInterface) {
                 $cart->addItem($item);
                 $newItems[] = $item;
 
@@ -105,7 +105,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
 
         $this->orderProcessor->process($cart);
 
-        $after = self::quantitiesByVariant($cart);
+        $after = $this->quantitiesByVariant($cart);
         $lines = [];
         $discrepancy = false;
         foreach ($result->lines as $line) {
@@ -166,7 +166,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         $variants = $this->variantLookup->findByCodes(array_map(static fn (QuickOrderLine $line): string => $line->code, $input->lines));
         // Visitors without an account cannot tell an unpublished or unpriced code from a typo.
         $customer = $cart->getCustomer();
-        $detailed = $customer instanceof CustomerInterface && null !== $customer->getUser();
+        $detailed = $customer instanceof CustomerInterface && $customer->getUser() instanceof \Sylius\Component\User\Model\UserInterface;
 
         $lines = [];
         foreach ($input->invalidLines as $invalidLine) {
@@ -192,7 +192,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         foreach ($resolved as $line) {
             \assert($channel instanceof ChannelInterface);
             $variant = $variants[$line->code];
-            $result = $this->checkLine($line, $variant, $channel, self::quantityInCart($cart, $variant));
+            $result = $this->checkLine($line, $variant, $channel, $this->quantityInCart($cart, $variant));
             if (!$detailed && \in_array($result->status, [LineStatus::Disabled, LineStatus::NotInChannel, LineStatus::NoChannelPricing], true)) {
                 // Same line as for an unknown code: no names either.
                 $result = new LineResult($result->code, $result->requestedQuantity, $result->quantity, LineStatus::NotAvailable, $result->lineNumbers);
@@ -215,7 +215,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
     {
         $product = $variant->getProduct();
         $quantity = $line->quantity;
-        $sellable = $product instanceof ProductInterface && $product->isEnabled() && $variant->isEnabled() && self::isSoldIn($product, $channel);
+        $sellable = $product instanceof ProductInterface && $product->isEnabled() && $variant->isEnabled() && $this->isSoldIn($product, $channel);
         $result = static fn (LineStatus $status, ?int $finalQuantity = null, ?int $available = null): LineResult => new LineResult(
             $line->code,
             (string) $line->quantity,
@@ -241,7 +241,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
 
         // Constraints apply to the quantity the cart will hold, not to the added quantity.
         $constraint = $this->quantityConstraintProvider->getConstraint($variant, $channel);
-        if (null !== $constraint && !$constraint->isSatisfiedBy($existing + $quantity)) {
+        if ($constraint instanceof \Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraint && !$constraint->isSatisfiedBy($existing + $quantity)) {
             $rounded = QuantityRounding::RoundUp === $this->quantityRounding ? $constraint->roundUp($existing + $quantity) : null;
             if (null === $rounded) {
                 return $result(LineStatus::QuantityConstraint);
@@ -286,13 +286,13 @@ final class BulkCartAdder implements BulkCartAdderInterface
      *
      * @return list<LineResult>
      */
-    private static function skipValidLines(array $lines): array
+    private function skipValidLines(array $lines): array
     {
         return array_map(static fn (LineResult $line): LineResult => LineStatus::Valid === $line->status ? $line->withStatus(LineStatus::Skipped) : $line, $lines);
     }
 
     /** By code: the channel of the cart may be another instance than the product's (cleared entity manager). */
-    private static function isSoldIn(ProductInterface $product, ChannelInterface $channel): bool
+    private function isSoldIn(ProductInterface $product, ChannelInterface $channel): bool
     {
         foreach ($product->getChannels() as $productChannel) {
             if ($productChannel->getCode() === $channel->getCode()) {
@@ -303,7 +303,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return false;
     }
 
-    private static function findEqualItem(OrderInterface $cart, OrderItemInterface $item): ?OrderItemInterface
+    private function findEqualItem(OrderInterface $cart, OrderItemInterface $item): ?OrderItemInterface
     {
         foreach ($cart->getItems() as $existing) {
             if ($item->equals($existing)) {
@@ -314,7 +314,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
         return null;
     }
 
-    private static function quantityInCart(OrderInterface $cart, ProductVariantInterface $variant): int
+    private function quantityInCart(OrderInterface $cart, ProductVariantInterface $variant): int
     {
         $quantity = 0;
         foreach ($cart->getItems() as $item) {
@@ -339,7 +339,7 @@ final class BulkCartAdder implements BulkCartAdderInterface
     }
 
     /** @return array<string, int> quantities indexed by variant key */
-    private static function quantitiesByVariant(OrderInterface $cart): array
+    private function quantitiesByVariant(OrderInterface $cart): array
     {
         $quantities = [];
         foreach ($cart->getItems() as $item) {

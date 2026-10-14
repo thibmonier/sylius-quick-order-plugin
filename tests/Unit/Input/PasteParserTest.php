@@ -45,7 +45,7 @@ final class PasteParserTest extends TestCase
     {
         $input = (new PasteParser(200))->parse("SKU\tQTY\n\nABC-1\t2\n   \nABC-2\t5\n");
 
-        self::assertSame(['ABC-1', 'ABC-2'], array_map(static fn ($line) => $line->code, $input->lines));
+        self::assertSame(['ABC-1', 'ABC-2'], array_map(static fn (\Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine $line): string => $line->code, $input->lines));
         self::assertSame([3], $input->lines[0]->lineNumbers);
         self::assertSame([5], $input->lines[1]->lineNumbers);
     }
@@ -71,7 +71,7 @@ final class PasteParserTest extends TestCase
         $input = (new PasteParser(200))->parse("ABC-1;2\nXYZ;1\nABC-1;3\nabc-1;4");
 
         // Codes differing in case are merged later, if they resolve to the same variant.
-        self::assertSame([['ABC-1', 5, [1, 3]], ['XYZ', 1, [2]], ['abc-1', 4, [4]]], array_map(static fn ($line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
+        self::assertSame([['ABC-1', 5, [1, 3]], ['XYZ', 1, [2]], ['abc-1', 4, [4]]], array_map(static fn (\Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine $line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
     }
 
     /** @return iterable<string, array{string, int}> */
@@ -114,12 +114,12 @@ final class PasteParserTest extends TestCase
     {
         $input = (new PasteParser(200))->parse("ABC-1,2,19.90\nABC-2,3,Blue shirt\nABC-3;4;100");
 
-        self::assertSame([['ABC-1', 2], ['ABC-2', 3], ['ABC-3', 4]], array_map(static fn ($line): array => [$line->code, $line->quantity], $input->lines));
+        self::assertSame([['ABC-1', 2], ['ABC-2', 3], ['ABC-3', 4]], array_map(static fn (\Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine $line): array => [$line->code, $line->quantity], $input->lines));
     }
 
     public function testCrOnlyLineEndings(): void
     {
-        self::assertSame([1, 2, 4], array_map(static fn ($line): int => $line->lineNumbers[0], (new PasteParser(200))->parse("A;1\rB;2\r\rC;3")->lines));
+        self::assertSame([1, 2, 4], array_map(static fn (\Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine $line): int => $line->lineNumbers[0], (new PasteParser(200))->parse("A;1\rB;2\r\rC;3")->lines));
     }
 
     public function testTooLongTextsAreRefusedBeforeParsing(): void

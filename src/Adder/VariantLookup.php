@@ -18,12 +18,12 @@ use Sylius\Component\Core\Model\ProductVariantInterface;
  * match, only when it designates a single variant. The case-insensitive query only runs
  * for the codes without exact match.
  */
-final class VariantLookup implements VariantLookupInterface
+final readonly class VariantLookup implements VariantLookupInterface
 {
     /** @param class-string<ProductVariantInterface> $variantClass */
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly string $variantClass,
+        private EntityManagerInterface $entityManager,
+        private string $variantClass,
     ) {
     }
 
@@ -53,7 +53,7 @@ final class VariantLookup implements VariantLookupInterface
         }
 
         $byLowerCode = [];
-        $lowerCodes = array_map('strval', array_keys($missing));
+        $lowerCodes = array_map(strval(...), array_keys($missing));
         foreach ($this->fetch($this->query()->andWhere('LOWER(variant.code) IN (:lowerCodes)')->setParameter('lowerCodes', $lowerCodes)) as $variant) {
             $byLowerCode[mb_strtolower((string) $variant->getCode())][] = $variant;
         }
@@ -120,7 +120,7 @@ final class VariantLookup implements VariantLookupInterface
         }
         $this->entityManager->createQueryBuilder()
             ->select('product', 'translation')
-            ->from((string) $this->entityManager->getClassMetadata($this->variantClass)->getAssociationTargetClass('product'), 'product')
+            ->from($this->entityManager->getClassMetadata($this->variantClass)->getAssociationTargetClass('product'), 'product')
             ->leftJoin('product.translations', 'translation')
             ->andWhere('product IN (:products)')
             ->setParameter('products', array_values($products))

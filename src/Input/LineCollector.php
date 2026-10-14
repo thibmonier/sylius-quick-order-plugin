@@ -121,7 +121,7 @@ final class LineCollector
         }
         $value = trim($value, " \t\n\r\0\x0B\u{A0}\u{FEFF}");
         if (\strlen($value) >= 2 && str_starts_with($value, '"') && str_ends_with($value, '"')) {
-            $value = trim(str_replace('""', '"', substr($value, 1, -1)));
+            return trim(str_replace('""', '"', substr($value, 1, -1)));
         }
 
         return $value;

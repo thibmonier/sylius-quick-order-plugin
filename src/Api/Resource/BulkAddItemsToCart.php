@@ -23,8 +23,8 @@ use Tmonier\SyliusQuickOrderPlugin\Api\BulkAddItemsResult;
             denormalizationContext: ['groups' => [self::WRITE_GROUP]],
             output: BulkAddItemsResult::class,
             read: false,
-            processor: BulkAddItemsProcessor::class,
             name: 'tmonier_quick_order_shop_bulk_add',
+            processor: BulkAddItemsProcessor::class,
         ),
     ],
 )]

@@ -74,7 +74,7 @@ final class QuickOrderController extends AbstractController
 
     public function indexAction(): Response
     {
-        if (null !== $denied = $this->denyGuests()) {
+        if (($denied = $this->denyGuests()) instanceof \Symfony\Component\HttpFoundation\Response) {
             return $denied;
         }
 
@@ -83,7 +83,7 @@ final class QuickOrderController extends AbstractController
 
     public function previewAction(Request $request): Response
     {
-        if (null !== $denied = $this->denyGuests()) {
+        if (($denied = $this->denyGuests()) instanceof \Symfony\Component\HttpFoundation\Response) {
             return $denied;
         }
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
@@ -115,7 +115,7 @@ final class QuickOrderController extends AbstractController
 
     public function addAction(Request $request): Response
     {
-        if (null !== $denied = $this->denyGuests()) {
+        if (($denied = $this->denyGuests()) instanceof \Symfony\Component\HttpFoundation\Response) {
             return $denied;
         }
         if (!$this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_csrf_token'))) {
@@ -159,11 +159,11 @@ final class QuickOrderController extends AbstractController
      * The order matrix without JavaScript: a plain form post of the quantities. Everything but
      * a complete success goes back to the product page, where the matrix shows the result.
      */
-    public function matrixAddAction(Request $request, int $productId): Response
+    public function matrixAddAction(Request $request, int $productId): \Symfony\Component\HttpFoundation\RedirectResponse
     {
         $product = $this->productRepository?->find($productId);
         $channel = $this->channelContext->getChannel();
-        if (!$product instanceof ProductInterface || null === $this->matrixOrderHandler || !$product->isEnabled() ||
+        if (!$product instanceof ProductInterface || !$this->matrixOrderHandler instanceof \Tmonier\SyliusQuickOrderPlugin\Matrix\MatrixOrderHandlerInterface || !$product->isEnabled() ||
             !$channel instanceof ChannelInterface || !$product->hasChannel($channel) ||
             true !== $this->matrixActivationChecker?->isMatrixProduct($product)) {
             throw new NotFoundHttpException('Product not found.');
@@ -175,7 +175,7 @@ final class QuickOrderController extends AbstractController
             return $this->redirect($productPage);
         }
 
-        $quantities = array_filter($request->request->all('quantities'), static fn (mixed $quantity): bool => \is_string($quantity));
+        $quantities = array_filter($request->request->all('quantities'), \is_string(...));
         $allOrNothing = $request->request->getBoolean('all_or_nothing');
         $result = $this->matrixOrderHandler->add($product, $quantities, $this->getCart(), $allOrNothing ? BulkAddMode::AllOrNothing : BulkAddMode::Partial);
         if ($result->applied && !$result->hasErrors()) {
@@ -205,11 +205,11 @@ final class QuickOrderController extends AbstractController
 
     public function resultAction(Request $request): Response
     {
-        if (null !== $denied = $this->denyGuests()) {
+        if (($denied = $this->denyGuests()) instanceof \Symfony\Component\HttpFoundation\Response) {
             return $denied;
         }
         $result = $this->loadResult($request);
-        if (null === $result) {
+        if (!$result instanceof \Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult) {
             return $this->redirectToRoute('tmonier_quick_order_shop_index');
         }
 
@@ -218,20 +218,20 @@ final class QuickOrderController extends AbstractController
 
     public function templateAction(): Response
     {
-        return self::csvResponse($this->csvWriter->template(), 'quick-order-template.csv');
+        return $this->csvResponse($this->csvWriter->template(), 'quick-order-template.csv');
     }
 
     public function reportAction(Request $request): Response
     {
-        if (null !== $denied = $this->denyGuests()) {
+        if (($denied = $this->denyGuests()) instanceof \Symfony\Component\HttpFoundation\Response) {
             return $denied;
         }
         $result = $this->loadResult($request);
-        if (null === $result) {
+        if (!$result instanceof \Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult) {
             throw new NotFoundHttpException('No quick order result.');
         }
 
-        return self::csvResponse($this->csvWriter->report($result), 'quick-order-report.csv');
+        return $this->csvResponse($this->csvWriter->report($result), 'quick-order-report.csv');
     }
 
     private function addAndRedirect(Request $request, QuickOrderInput $input, BulkAddMode $mode): Response
@@ -266,21 +266,21 @@ final class QuickOrderController extends AbstractController
 
     private function denyGuests(): ?Response
     {
-        if ($this->allowGuests || null !== $this->getUser()) {
+        if ($this->allowGuests || $this->getUser() instanceof \Symfony\Component\Security\Core\User\UserInterface) {
             return null;
         }
 
         return $this->redirectToRoute('sylius_shop_login');
     }
 
-    private function redirectWithError(string $message): Response
+    private function redirectWithError(string $message): \Symfony\Component\HttpFoundation\RedirectResponse
     {
         $this->addFlash('error', $message);
 
         return $this->redirectToRoute('tmonier_quick_order_shop_index');
     }
 
-    private function redirectWithRefusal(string $refusal): Response
+    private function redirectWithRefusal(string $refusal): \Symfony\Component\HttpFoundation\RedirectResponse
     {
         $this->addFlash('error', ['message' => 'tmonier_quick_order.refusal.' . $refusal, 'parameters' => ['%max%' => $this->maxTotalQuantity, '%lines%' => $this->maxLines]]);
 
@@ -292,11 +292,11 @@ final class QuickOrderController extends AbstractController
     {
         $session = $request->getSession();
         $previews = $session->get(self::PREVIEW_KEY);
-        $previews = \is_array($previews) ? array_filter($previews, 'is_string') : [];
+        $previews = \is_array($previews) ? array_filter($previews, is_string(...)) : [];
         $nonce = bin2hex(random_bytes(16));
         $previews[$nonce] = $input->toJson();
         // Each input is bounded by max_lines; the whole list by the count and a size cap.
-        while (\count($previews) > self::MAX_PREVIEWS || array_sum(array_map('strlen', $previews)) > 4 * $this->maxFileSize) {
+        while (\count($previews) > self::MAX_PREVIEWS || array_sum(array_map(strlen(...), $previews)) > 4 * $this->maxFileSize) {
             array_shift($previews);
         }
         $session->set(self::PREVIEW_KEY, $previews);
@@ -361,7 +361,7 @@ final class QuickOrderController extends AbstractController
         ];
     }
 
-    private static function csvResponse(string $csv, string $filename): Response
+    private function csvResponse(string $csv, string $filename): Response
     {
         return new Response($csv, Response::HTTP_OK, [
             'Content-Type' => 'text/csv; charset=UTF-8',

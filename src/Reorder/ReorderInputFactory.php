@@ -13,9 +13,9 @@ use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
  * The items of a past order as quick order lines (current catalog prices, not the old ones).
  * Items whose variant is gone are reported as unknown codes.
  */
-final class ReorderInputFactory
+final readonly class ReorderInputFactory
 {
-    public function __construct(private readonly int $maxLines)
+    public function __construct(private int $maxLines)
     {
     }
 

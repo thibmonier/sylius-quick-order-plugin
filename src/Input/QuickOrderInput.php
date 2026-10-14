@@ -7,7 +7,7 @@ namespace Tmonier\SyliusQuickOrderPlugin\Input;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 
-final class QuickOrderInput
+final readonly class QuickOrderInput
 {
     /**
      * @param list<QuickOrderLine> $lines
@@ -15,9 +15,9 @@ final class QuickOrderInput
      * @param string|null $rejection why the input is refused as a whole (BulkAddResult::INPUT_REFUSALS)
      */
     public function __construct(
-        public readonly array $lines,
-        public readonly array $invalidLines = [],
-        public readonly ?string $rejection = null,
+        public array $lines,
+        public array $invalidLines = [],
+        public ?string $rejection = null,
     ) {
     }
 

@@ -27,7 +27,7 @@ final class MatrixOrderHandlerTest extends TestCase
             'v999999' => '5',
         ]);
 
-        self::assertSame([['TEE-S', 3, [1]]], array_map(static fn ($line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
+        self::assertSame([['TEE-S', 3, [1]]], array_map(static fn (\Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderLine $line): array => [$line->code, $line->quantity, $line->lineNumbers], $input->lines));
         self::assertSame(LineStatus::AmbiguousQuantity, $input->invalidLines[0]->status);
         self::assertSame('TEE-L', $input->invalidLines[0]->code);
     }

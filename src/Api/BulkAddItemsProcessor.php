@@ -21,17 +21,17 @@ use Tmonier\SyliusQuickOrderPlugin\Api\Resource\BulkAddItemsToCart;
 use Tmonier\SyliusQuickOrderPlugin\Input\LineCollector;
 
 /** @implements ProcessorInterface<BulkAddItemsToCart, BulkAddItemsResult> */
-final class BulkAddItemsProcessor implements ProcessorInterface
+final readonly class BulkAddItemsProcessor implements ProcessorInterface
 {
     /** @param OrderRepositoryInterface<OrderInterface> $orderRepository */
     public function __construct(
-        private readonly OrderRepositoryInterface $orderRepository,
-        private readonly BulkCartAdderInterface $bulkCartAdder,
-        private readonly UserContextInterface $userContext,
-        private readonly string $apiShopRoute,
-        private readonly string $defaultMode,
-        private readonly int $maxLines,
-        private readonly int $maxTotalQuantity = 20000,
+        private OrderRepositoryInterface $orderRepository,
+        private BulkCartAdderInterface $bulkCartAdder,
+        private UserContextInterface $userContext,
+        private string $apiShopRoute,
+        private string $defaultMode,
+        private int $maxLines,
+        private int $maxTotalQuantity = 20000,
     ) {
     }
 
@@ -83,7 +83,7 @@ final class BulkAddItemsProcessor implements ProcessorInterface
         }
 
         $cartCustomer = $cart->getCustomer();
-        if (!$cartCustomer instanceof CustomerInterface || null === $cartCustomer->getUser()) {
+        if (!$cartCustomer instanceof CustomerInterface || !$cartCustomer->getUser() instanceof \Sylius\Component\User\Model\UserInterface) {
             return true;
         }
 

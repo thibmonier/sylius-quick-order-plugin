@@ -20,7 +20,7 @@ final class CountingOrderProcessor implements OrderProcessorInterface
     public function process(OrderInterface $order): void
     {
         ++$this->calls;
-        if (null !== $this->callback) {
+        if ($this->callback instanceof \Closure) {
             ($this->callback)($order);
         }
     }

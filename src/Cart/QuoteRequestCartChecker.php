@@ -11,9 +11,9 @@ use Sylius\Component\Core\Model\OrderInterface;
  * "tmonier_quote_request.quote_cart_checker" service tells whether a cart holds an accepted
  * quote at locked prices. Registered by QuoteRequestBridgePass only when that service exists.
  */
-final class QuoteRequestCartChecker implements LockedCartCheckerInterface
+final readonly class QuoteRequestCartChecker implements LockedCartCheckerInterface
 {
-    public function __construct(private readonly object $quoteCartChecker)
+    public function __construct(private object $quoteCartChecker)
     {
     }
 

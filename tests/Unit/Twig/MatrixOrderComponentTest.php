@@ -124,7 +124,7 @@ final class MatrixOrderComponentTest extends TestCase
     {
         $product = MatrixFixtures::product('P', ['size' => ['S']], $this->channel);
         $s = MatrixFixtures::variant($product, ['S']);
-        $this->cells = [new MatrixCell(self::id($s), 'P-S', 'S', CellStatus::Orderable, 1000)];
+        $this->cells = [new MatrixCell($this->id($s), 'P-S', 'S', CellStatus::Orderable, 1000)];
         $other = MatrixFixtures::channel();
         $other->setCode('OTHER');
 
@@ -169,8 +169,8 @@ final class MatrixOrderComponentTest extends TestCase
         $s = MatrixFixtures::variant($product, ['S']);
         $m = MatrixFixtures::variant($product, ['M']);
         $this->cells = [
-            new MatrixCell(self::id($s), 'P-S', 'S', CellStatus::Orderable, 1000),
-            new MatrixCell(self::id($m), 'P-M', 'M', CellStatus::Orderable, 1000),
+            new MatrixCell($this->id($s), 'P-S', 'S', CellStatus::Orderable, 1000),
+            new MatrixCell($this->id($m), 'P-M', 'M', CellStatus::Orderable, 1000),
         ];
         $component = $this->component(adder: new MatrixOrderHandler(new class() implements \Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface {
             public function validate(\Sylius\Component\Core\Model\OrderInterface $cart, \Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput $input): BulkAddResult
@@ -250,7 +250,7 @@ final class MatrixOrderComponentTest extends TestCase
         return $component;
     }
 
-    private static function id(ProductVariantInterface $variant): int
+    private function id(ProductVariantInterface $variant): int
     {
         $id = $variant->getId();
         self::assertIsInt($id);

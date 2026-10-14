@@ -9,22 +9,22 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineResult;
 use Tmonier\SyliusQuickOrderPlugin\Api\Resource\BulkAddItemsToCart;
 
-final class BulkAddItemsResult
+final readonly class BulkAddItemsResult
 {
     /** @param list<array{lineNumbers: list<int>, code: string, requestedQuantity: string, quantity: int|null, addedQuantity: int, status: string, available: int|null}> $lines */
     public function __construct(
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly string $cart,
+        public string $cart,
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly bool $applied,
+        public bool $applied,
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly string $mode,
+        public string $mode,
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly int $addedCount,
+        public int $addedCount,
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly array $lines,
+        public array $lines,
         #[Groups([BulkAddItemsToCart::READ_GROUP])]
-        public readonly ?string $refusal = null,
+        public ?string $refusal = null,
     ) {
     }
 

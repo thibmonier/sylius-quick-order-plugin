@@ -123,7 +123,7 @@ final class MatrixBuilderTest extends TestCase
 
         // S: discounted, the channel shows the Omnibus price. M: discounted, the channel does not.
         // L: not discounted (a lowest price alone is never shown).
-        $matrix = $this->builder(original: ['TEE-S' => 1500, 'TEE-M' => 1200], lowest: ['TEE-S' => 900, 'TEE-L' => 800])->build($product, $this->channel);
+        $matrix = $this->builder(lowest: ['TEE-S' => 900, 'TEE-L' => 800], original: ['TEE-S' => 1500, 'TEE-M' => 1200])->build($product, $this->channel);
 
         self::assertSame([1500, 1200, null], array_map(static fn (MatrixCell $cell): ?int => $cell->struckPrice, $matrix->cells));
         self::assertSame([900, null, null], array_map(static fn (MatrixCell $cell): ?int => $cell->lowestPriceBeforeDiscount, $matrix->cells));

@@ -15,13 +15,13 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
  * Without a header, the first column is the code and the second the quantity. Every row needs
  * a quantity. Line endings: LF, CRLF or CR.
  */
-final class CsvParser
+final readonly class CsvParser
 {
     private const CODE_HEADERS = ['sku', 'code', 'codes', 'product_code', 'productcode', 'variant_code', 'variantcode', 'product code', 'variant code', 'item', 'item code', 'item number', 'part number', 'reference', 'référence', 'ref', 'réf', 'réf.', 'article', 'artikel', 'artikelnummer', 'artikelnr', 'artikelnr.', 'art.-nr.', 'código', 'codigo', 'referencia', 'codice', 'articolo', 'kod', 'indeks'];
 
     private const QUANTITY_HEADERS = ['qty', 'qty.', 'quantity', 'quantities', 'quantité', 'quantite', 'qté', 'qte', 'menge', 'anzahl', 'stück', 'stueck', 'cantidad', 'cant.', 'quantità', 'quantita', 'qtà', 'aantal', 'ilość', 'ilosc'];
 
-    public function __construct(private readonly int $maxLines, private readonly int $maxFileSize)
+    public function __construct(private int $maxLines, private int $maxFileSize)
     {
     }
 
@@ -57,7 +57,7 @@ final class CsvParser
         fwrite($handle, $content);
         rewind($handle);
 
-        $separator = self::detectSeparator(strtok($content, "\n") ?: '');
+        $separator = $this->detectSeparator(strtok($content, "\n") ?: '');
         $collector = new LineCollector($this->maxLines);
         $codeColumn = 0;
         $quantityColumn = 1;
@@ -67,12 +67,12 @@ final class CsvParser
         $first = true;
         while (!$collector->isFull() && false !== ($row = fgetcsv($handle, null, $separator, '"', ''))) {
             ++$lineNumber;
-            if ([null] === $row || '' === trim(implode('', array_map('strval', $row)))) {
+            if ([null] === $row || '' === trim(implode('', array_map(strval(...), $row)))) {
                 continue;
             }
             if ($first) {
                 $first = false;
-                $columns = self::headerColumns($row);
+                $columns = $this->headerColumns($row);
                 if (false === $columns) {
                     fclose($handle);
 
@@ -86,9 +86,9 @@ final class CsvParser
                 }
             }
 
-            $code = (string) ($row[$codeColumn] ?? '');
-            $quantity = (string) ($row[$quantityColumn] ?? '');
-            $next = trim((string) ($row[$quantityColumn + 1] ?? ''));
+            $code = $row[$codeColumn] ?? '';
+            $quantity = $row[$quantityColumn] ?? '';
+            $next = trim($row[$quantityColumn + 1] ?? '');
             if (\count($row) > $width && 1 === preg_match('/^\d{1,3}$/', trim($quantity)) && 1 === preg_match('/^\d{3}$/', $next)) {
                 // "ABC,1,000" unquoted: 1000 or 1? Never guess.
                 $collector->addInvalid($lineNumber, $code, trim($quantity) . $separator . $next, LineStatus::AmbiguousQuantity);
@@ -103,7 +103,7 @@ final class CsvParser
         return $collector->getInput();
     }
 
-    private static function detectSeparator(string $firstLine): string
+    private function detectSeparator(string $firstLine): string
     {
         $counts = [',' => substr_count($firstLine, ','), ';' => substr_count($firstLine, ';'), "\t" => substr_count($firstLine, "\t")];
         arsort($counts);
@@ -125,7 +125,7 @@ final class CsvParser
      *
      * @return array{0: int, 1: int}|false|null
      */
-    private static function headerColumns(array $row): array|false|null
+    private function headerColumns(array $row): array|false|null
     {
         $codeColumn = null;
         $quantityColumn = null;
