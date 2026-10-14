@@ -12,19 +12,19 @@ use Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraint;
  * $lowestPriceBeforeDiscount the Omnibus price shown for discounted variants when the channel
  * shows it.
  */
-final class MatrixCell
+final readonly class MatrixCell
 {
     public function __construct(
-        public readonly int $variantId,
-        public readonly string $code,
-        public readonly string $label,
-        public readonly CellStatus $status,
-        public readonly ?int $price = null,
-        public readonly ?int $struckPrice = null,
-        public readonly int $minimum = 1,
-        public readonly int $step = 1,
-        public readonly ?int $maximum = null,
-        public readonly ?int $lowestPriceBeforeDiscount = null,
+        public int $variantId,
+        public string $code,
+        public string $label,
+        public CellStatus $status,
+        public ?int $price = null,
+        public ?int $struckPrice = null,
+        public int $minimum = 1,
+        public int $step = 1,
+        public ?int $maximum = null,
+        public ?int $lowestPriceBeforeDiscount = null,
     ) {
     }
 

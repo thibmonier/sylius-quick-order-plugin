@@ -13,11 +13,11 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
  * line that looks like a header (SKU, code...) is skipped. Texts longer than $maxLength bytes
  * are refused before parsing; lines are read one by one and reading stops past max_lines.
  */
-final class PasteParser
+final readonly class PasteParser
 {
     private const HEADER_CODES = '/^(sku|code|codes|product[ _-]?code|variant[ _-]?code|item|reference|ref|référence|artikel|artikelnummer|codice|código|codigo|kod)$/iu';
 
-    public function __construct(private readonly int $maxLines, private readonly int $maxLength = 1048576)
+    public function __construct(private int $maxLines, private int $maxLength = 1048576)
     {
     }
 
@@ -43,7 +43,7 @@ final class PasteParser
             if ('' === trim($line, " \t\u{A0}\u{FEFF}")) {
                 continue;
             }
-            [$code, $quantity, $ambiguous] = self::split($line);
+            [$code, $quantity, $ambiguous] = $this->split($line);
             if ($first && self::isHeader($code, $quantity)) {
                 $first = false;
 
@@ -74,7 +74,7 @@ final class PasteParser
      *
      * @return array{0: string, 1: string|null, 2: bool} code, quantity, ambiguous
      */
-    private static function split(string $line): array
+    private function split(string $line): array
     {
         foreach (["\t", ';', ','] as $separator) {
             if (str_contains($line, $separator)) {

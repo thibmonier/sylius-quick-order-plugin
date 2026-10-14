@@ -12,15 +12,15 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\LineResult;
  * CSV template and error report. Cells starting with "=", "+", "-", "@", TAB or CR are
  * prefixed with a quote so that spreadsheets do not run them as formulas.
  */
-final class CsvWriter
+final readonly class CsvWriter
 {
-    public function __construct(private readonly TranslatorInterface $translator)
+    public function __construct(private TranslatorInterface $translator)
     {
     }
 
     public function template(): string
     {
-        return self::write([['SKU', 'QTY'], ['EXAMPLE-SKU-1', '2'], ['EXAMPLE-SKU-2', '10']]);
+        return $this->write([['SKU', 'QTY'], ['EXAMPLE-SKU-1', '2'], ['EXAMPLE-SKU-2', '10']]);
     }
 
     /** Lines that were not added (errors and skipped lines), in their original order. */
@@ -39,7 +39,7 @@ final class CsvWriter
             }
         }
 
-        return self::write($rows);
+        return $this->write($rows);
     }
 
     /** @return array{0: string, 1: array<string, string|int>, 2: string} */
@@ -58,7 +58,7 @@ final class CsvWriter
     }
 
     /** @param list<list<string>> $rows */
-    private static function write(array $rows): string
+    private function write(array $rows): string
     {
         $handle = fopen('php://temp', 'r+');
         \assert(false !== $handle);

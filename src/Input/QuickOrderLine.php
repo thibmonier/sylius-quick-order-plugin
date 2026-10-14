@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Input;
 
 /** A variant code and a quantity; lines with the same code are merged into one. */
-final class QuickOrderLine
+final readonly class QuickOrderLine
 {
     /** @param non-empty-list<int> $lineNumbers source line numbers (1-based) */
     public function __construct(
-        public readonly string $code,
-        public readonly int $quantity,
-        public readonly array $lineNumbers,
+        public string $code,
+        public int $quantity,
+        public array $lineNumbers,
     ) {
     }
 

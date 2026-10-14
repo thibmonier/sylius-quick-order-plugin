@@ -189,7 +189,7 @@ final class TestCatalog
         $cart->setCurrencyCode((string) $channel->getBaseCurrency()?->getCode());
         $cart->setLocaleCode((string) $channel->getDefaultLocale()?->getCode());
         $cart->setTokenValue('qo_' . bin2hex(random_bytes(10)));
-        if (null !== $customer) {
+        if ($customer instanceof \Sylius\Component\Core\Model\CustomerInterface) {
             $cart->setCustomerWithAuthorization($customer);
         }
         $this->entityManager()->persist($cart);

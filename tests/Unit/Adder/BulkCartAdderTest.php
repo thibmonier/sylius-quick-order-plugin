@@ -423,7 +423,7 @@ final class BulkCartAdderTest extends TestCase
                     return $this->test->locked();
                 }
             },
-            self::cartItemFactory(),
+            $this->cartItemFactory(),
             new OrderItemQuantityModifier(new OrderItemUnitFactory(OrderItemUnit::class)),
             $this->processor,
             $this->manager,
@@ -436,7 +436,7 @@ final class BulkCartAdderTest extends TestCase
     }
 
     /** @return FactoryInterface<OrderItemInterface> */
-    private static function cartItemFactory(): FactoryInterface
+    private function cartItemFactory(): FactoryInterface
     {
         return new
         /** @implements FactoryInterface<OrderItemInterface> */

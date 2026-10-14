@@ -196,11 +196,11 @@ final class BulkCartAdderIntegrationTest extends KernelTestCase
             $processor,
             $this->entityManager(),
             $this->service('event_dispatcher', \Symfony\Contracts\EventDispatcher\EventDispatcherInterface::class),
-            self::intParameter('sylius.order_item_quantity_modifier.limit'),
+            $this->intParameter('sylius.order_item_quantity_modifier.limit'),
         );
     }
 
-    private static function intParameter(string $name): int
+    private function intParameter(string $name): int
     {
         $value = self::getContainer()->getParameter($name);
         self::assertIsInt($value);

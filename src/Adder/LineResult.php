@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tmonier\SyliusQuickOrderPlugin\Adder;
 
 /** Outcome of one line (preview or addition). */
-final class LineResult
+final readonly class LineResult
 {
     /**
      * @param list<int> $lineNumbers source line numbers (1-based)
@@ -13,15 +13,15 @@ final class LineResult
      * @param int|null $available units that could still be added (stock or quantity limit), if relevant
      */
     public function __construct(
-        public readonly string $code,
-        public readonly string $requestedQuantity,
-        public readonly ?int $quantity,
-        public readonly LineStatus $status,
-        public readonly array $lineNumbers,
-        public readonly ?string $productName = null,
-        public readonly ?string $variantName = null,
-        public readonly int $addedQuantity = 0,
-        public readonly ?int $available = null,
+        public string $code,
+        public string $requestedQuantity,
+        public ?int $quantity,
+        public LineStatus $status,
+        public array $lineNumbers,
+        public ?string $productName = null,
+        public ?string $variantName = null,
+        public int $addedQuantity = 0,
+        public ?int $available = null,
     ) {
     }
 

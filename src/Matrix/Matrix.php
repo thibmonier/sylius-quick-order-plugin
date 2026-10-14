@@ -8,7 +8,7 @@ namespace Tmonier\SyliusQuickOrderPlugin\Matrix;
  * A grid (2 options: rows x columns) or a list (1 option, more than 2 options, or too many
  * cells) of the variants of a product.
  */
-final class Matrix
+final readonly class Matrix
 {
     public const LAYOUT_GRID = 'grid';
 
@@ -21,13 +21,13 @@ final class Matrix
      * @param list<MatrixCell> $cells every cell, in display order
      */
     public function __construct(
-        public readonly string $layout,
-        public readonly array $cells,
-        public readonly ?string $rowLabel = null,
-        public readonly ?string $columnLabel = null,
-        public readonly array $rows = [],
-        public readonly array $columns = [],
-        public readonly array $grid = [],
+        public string $layout,
+        public array $cells,
+        public ?string $rowLabel = null,
+        public ?string $columnLabel = null,
+        public array $rows = [],
+        public array $columns = [],
+        public array $grid = [],
     ) {
     }
 

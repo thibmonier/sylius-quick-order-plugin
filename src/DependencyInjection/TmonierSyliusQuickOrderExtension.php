@@ -26,7 +26,7 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
 
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__ . '/../../config'));
         $loader->load('services.php');
-        if (self::hasApiPlatform($container)) {
+        if ($this->hasApiPlatform($container)) {
             $loader->load('services_api.php');
         }
     }
@@ -48,15 +48,15 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
             ]]);
         }
 
-        if (self::hasApiPlatform($container)) {
+        if ($this->hasApiPlatform($container)) {
             $container->prependExtensionConfig('api_platform', [
-                'mapping' => ['paths' => [\dirname(__DIR__) . '/Api/Resource']],
+                'mapping' => ['paths' => [__DIR__ . '/../Api/Resource']],
             ]);
         }
     }
 
     /** Extensions are not registered in the container given to load(): check the bundles. */
-    private static function hasApiPlatform(ContainerBuilder $container): bool
+    private function hasApiPlatform(ContainerBuilder $container): bool
     {
         $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : [];
 

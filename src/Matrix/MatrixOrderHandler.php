@@ -19,9 +19,9 @@ use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
  * of the product are taken, the array is bounded by the number of variants, every other check
  * (enabled, channel, price, stock, quantity rules) is the bulk adder's.
  */
-final class MatrixOrderHandler implements MatrixOrderHandlerInterface
+final readonly class MatrixOrderHandler implements MatrixOrderHandlerInterface
 {
-    public function __construct(private readonly BulkCartAdderInterface $bulkCartAdder)
+    public function __construct(private BulkCartAdderInterface $bulkCartAdder)
     {
     }
 

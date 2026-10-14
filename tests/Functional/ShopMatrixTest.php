@@ -53,7 +53,7 @@ final class ShopMatrixTest extends WebTestCase
         self::assertNull($box->attr('value'));
         self::assertStringContainsString('Nothing is added unless every line can be added.', $crawler->filter('#' . $box->attr('aria-describedby'))->text());
         // The absolute hooks of the matrix page work, with their context.
-        $productCode = (string) self::first($variants)->getProduct()?->getCode();
+        $productCode = (string) $this->first($variants)->getProduct()?->getCode();
         self::assertSelectorTextContains('[data-test-matrix-extra="' . $productCode . '"]', 'grid');
         self::assertSelectorExists('[data-test-add-to-cart-extra]');
     }
@@ -122,7 +122,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $product = self::first($variants)->getProduct();
+        $product = $this->first($variants)->getProduct();
         $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $product], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode())
             ->set('quantities.' . MatrixOrderHandler::key($variants[$prefix . '-S-RED']), '2');
@@ -143,7 +143,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $this->first($variants)->getProduct()], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
         $key = MatrixOrderHandler::key($variants[$prefix . '-M-RED']);
         $selector = '[data-test-tmonier-quick-order-matrix-input="' . $prefix . '-M-RED"]';
@@ -264,13 +264,13 @@ final class ShopMatrixTest extends WebTestCase
     public function testTheFallbackRouteOnlyServesMatrixProducts(): void
     {
         $simple = $this->catalog->variant('QO-SIMPLE-' . $this->catalog->suffix);
-        $this->client->request('POST', $this->url('/quick-order/products/' . self::id($simple->getProduct()?->getId()) . '/matrix'), ['quantities' => [MatrixOrderHandler::key($simple) => '1']]);
+        $this->client->request('POST', $this->url('/quick-order/products/' . $this->id($simple->getProduct()?->getId()) . '/matrix'), ['quantities' => [MatrixOrderHandler::key($simple) => '1']]);
         self::assertResponseStatusCodeSame(404);
 
         $variants = $this->catalog->teeMatrix();
-        $product = self::first($variants)->getProduct();
+        $product = $this->first($variants)->getProduct();
         self::assertNotNull($product);
-        $this->client->request('POST', $this->url('/quick-order/products/' . self::id($product->getId()) . '/matrix'), ['_csrf_token' => 'forged', 'quantities' => []]);
+        $this->client->request('POST', $this->url('/quick-order/products/' . $this->id($product->getId()) . '/matrix'), ['_csrf_token' => 'forged', 'quantities' => []]);
         self::assertResponseRedirects($this->productUrl($variants) . '#tmonier-quick-order-matrix');
         $this->client->followRedirect();
         self::assertSelectorTextContains('[data-test-flash-messages]', 'Your session has expired');
@@ -280,15 +280,15 @@ final class ShopMatrixTest extends WebTestCase
         self::assertNotNull($product);
         $product->setEnabled(false);
         $this->entityManager()->flush();
-        $this->client->request('POST', $this->url('/quick-order/products/' . self::id($product->getId()) . '/matrix'), ['quantities' => []]);
+        $this->client->request('POST', $this->url('/quick-order/products/' . $this->id($product->getId()) . '/matrix'), ['quantities' => []]);
         self::assertResponseStatusCodeSame(404);
 
         $other = $this->catalog->teeMatrix();
-        $otherProduct = self::first($other)->getProduct();
+        $otherProduct = $this->first($other)->getProduct();
         self::assertInstanceOf(\Sylius\Component\Core\Model\ProductInterface::class, $otherProduct);
         $otherProduct->removeChannel($this->catalog->channel());
         $this->entityManager()->flush();
-        $this->client->request('POST', $this->url('/quick-order/products/' . self::id($otherProduct->getId()) . '/matrix'), ['quantities' => []]);
+        $this->client->request('POST', $this->url('/quick-order/products/' . $this->id($otherProduct->getId()) . '/matrix'), ['quantities' => []]);
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -297,7 +297,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $this->first($variants)->getProduct()], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
 
         $component
@@ -325,7 +325,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $this->first($variants)->getProduct()], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
 
         $component
@@ -344,7 +344,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $this->first($variants)->getProduct()], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
 
         $component
@@ -368,7 +368,7 @@ final class ShopMatrixTest extends WebTestCase
         $variants = $this->catalog->teeMatrix();
         $prefix = 'QO-' . $this->catalog->suffix;
         $this->client->request('GET', $this->productUrl($variants));
-        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => self::first($variants)->getProduct()], $this->client)
+        $component = $this->createLiveComponent('tmonier_quick_order:product:matrix', ['product' => $this->first($variants)->getProduct()], $this->client)
             ->setRouteLocale((string) $this->catalog->channel()->getDefaultLocale()?->getCode());
 
         $component
@@ -385,7 +385,7 @@ final class ShopMatrixTest extends WebTestCase
     }
 
     /** @param array<string, ProductVariantInterface> $variants */
-    private static function first(array $variants): ProductVariantInterface
+    private function first(array $variants): ProductVariantInterface
     {
         $variant = reset($variants);
         self::assertInstanceOf(ProductVariantInterface::class, $variant);
@@ -393,7 +393,7 @@ final class ShopMatrixTest extends WebTestCase
         return $variant;
     }
 
-    private static function id(mixed $id): string
+    private function id(mixed $id): string
     {
         self::assertIsInt($id);
 
@@ -403,6 +403,6 @@ final class ShopMatrixTest extends WebTestCase
     /** @param array<string, ProductVariantInterface> $variants */
     private function productUrl(array $variants): string
     {
-        return $this->url('/products/' . self::first($variants)->getProduct()?->getSlug());
+        return $this->url('/products/' . $this->first($variants)->getProduct()?->getSlug());
     }
 }

@@ -65,7 +65,7 @@ final class MatrixOrderComponent
     public array $resultQuantities = [];
 
     #[LiveProp(writable: true)]
-    public bool $allOrNothing = false;
+    public bool $allOrNothing;
 
     /** @var array<mixed>|null last result (BulkAddResult::toArray()); read it with getResult() */
     #[LiveProp]
@@ -109,7 +109,7 @@ final class MatrixOrderComponent
 
     public function getMatrix(): ?Matrix
     {
-        if (null !== $this->matrix || null === $this->product || !$this->activationChecker->isMatrixProduct($this->product)) {
+        if ($this->matrix instanceof \Tmonier\SyliusQuickOrderPlugin\Matrix\Matrix || !$this->product instanceof \Sylius\Component\Core\Model\ProductInterface || !$this->activationChecker->isMatrixProduct($this->product)) {
             return $this->matrix;
         }
         $channel = $this->channelContext->getChannel();
@@ -130,7 +130,7 @@ final class MatrixOrderComponent
         if (\is_array($stored) && \is_array($stored['result'] ?? null) && \is_array($stored['quantities'] ?? null)) {
             $session->remove($key);
             $this->lastResult = $stored['result'];
-            $this->quantities = array_filter($stored['quantities'], static fn (mixed $quantity): bool => \is_string($quantity));
+            $this->quantities = array_filter($stored['quantities'], \is_string(...));
             $this->allOrNothing = true === ($stored['all_or_nothing'] ?? false);
             $this->resultQuantities = $this->quantities;
         }
@@ -164,13 +164,13 @@ final class MatrixOrderComponent
     public function dropCorrectedLines(): void
     {
         $result = $this->getResult();
-        if (null === $result) {
+        if (!$result instanceof \Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult) {
             return;
         }
         $changed = [];
         foreach ($this->getMatrix()->cells ?? [] as $cell) {
             $key = $cell->getKey();
-            if (self::normalized($this->resultQuantities[$key] ?? '') !== self::normalized($this->quantities[$key] ?? '')) {
+            if ($this->normalized($this->resultQuantities[$key] ?? '') !== $this->normalized($this->quantities[$key] ?? '')) {
                 $changed[] = $cell->code;
             }
         }
@@ -184,7 +184,7 @@ final class MatrixOrderComponent
         $this->resultQuantities = null === $this->lastResult ? [] : $this->quantities;
     }
 
-    private static function normalized(mixed $quantity): string
+    private function normalized(mixed $quantity): string
     {
         return \is_string($quantity) || \is_int($quantity) ? (string) $quantity : '';
     }
@@ -269,7 +269,7 @@ final class MatrixOrderComponent
     #[LiveAction]
     public function add(): void
     {
-        if (null === $this->product || null === $this->getMatrix()) {
+        if (!$this->product instanceof \Sylius\Component\Core\Model\ProductInterface || !$this->getMatrix() instanceof \Tmonier\SyliusQuickOrderPlugin\Matrix\Matrix) {
             return;
         }
         $cart = $this->cartContext->getCart();
@@ -297,7 +297,7 @@ final class MatrixOrderComponent
         // Read like MatrixOrderHandler::input() and LineCollector: strings and integers only,
         // cleaned ('""', no-break spaces, BOM) before the empty check.
         $raw = $this->quantities[$cell->getKey()] ?? null;
-        if (!$cell->isOrderable() || !(\is_string($raw) || \is_int($raw)) || '' === LineCollector::clean((string) $raw)) {
+        if (!$cell->isOrderable() || !\is_string($raw) && !\is_int($raw) || '' === LineCollector::clean((string) $raw)) {
             return null;
         }
         $quantity = LineCollector::parseQuantity((string) $raw);
@@ -306,7 +306,7 @@ final class MatrixOrderComponent
         }
 
         $constraint = $cell->getConstraint();
-        if (null !== $constraint && !$constraint->isSatisfiedBy($inCart + $quantity)) {
+        if ($constraint instanceof \Tmonier\SyliusQuickOrderPlugin\Quantity\QuantityConstraint && !$constraint->isSatisfiedBy($inCart + $quantity)) {
             $rounded = QuantityRounding::RoundUp === $this->quantityRounding ? $constraint->roundUp($inCart + $quantity) : null;
             if (null === $rounded) {
                 return null;

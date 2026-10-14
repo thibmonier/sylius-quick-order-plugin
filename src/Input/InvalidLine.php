@@ -7,13 +7,13 @@ namespace Tmonier\SyliusQuickOrderPlugin\Input;
 use Tmonier\SyliusQuickOrderPlugin\Adder\LineStatus;
 
 /** A source line that could not be read (no code, bad quantity). */
-final class InvalidLine
+final readonly class InvalidLine
 {
     public function __construct(
-        public readonly int $lineNumber,
-        public readonly string $code,
-        public readonly string $quantity,
-        public readonly LineStatus $status,
+        public int $lineNumber,
+        public string $code,
+        public string $quantity,
+        public LineStatus $status,
     ) {
     }
 }

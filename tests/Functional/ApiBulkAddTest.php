@@ -182,7 +182,7 @@ final class ApiBulkAddTest extends WebTestCase
     private function headers(?CustomerInterface $as = null): array
     {
         $headers = ['CONTENT_TYPE' => 'application/ld+json', 'HTTP_ACCEPT' => 'application/ld+json'];
-        if (null !== $as) {
+        if ($as instanceof \Sylius\Component\Core\Model\CustomerInterface) {
             $user = $as->getUser();
             self::assertInstanceOf(ShopUserInterface::class, $user);
             $manager = self::getContainer()->get('lexik_jwt_authentication.jwt_manager');
