@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.0 (2026-10-18)
+
 - `example_lines` option: the example shown as the placeholder of the paste box is configurable; the default is now a
   translated, neutral example (`tmonier_quick_order.ui.lines_placeholder`) instead of a hard-coded one.
 
