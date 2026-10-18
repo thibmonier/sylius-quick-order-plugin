@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Commandez par référence : collez des lignes ou envoyez un fichier CSV (%max% lignes au plus), vérifiez l''aperçu, puis ajoutez le tout au panier en une fois.'
         paste_lines: 'Collez vos lignes'
         paste_lines_help: 'Un produit par ligne : référence et quantité séparées par « ; », « , » ou une tabulation (copie depuis un tableur), ou par une espace avant la quantité.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Ou envoyez un fichier CSV'
         csv_help: 'Colonnes SKU et QTY, séparées par des virgules, des points-virgules ou des tabulations ; %size% Mo au plus.'
         download_template: 'Télécharger le modèle CSV'

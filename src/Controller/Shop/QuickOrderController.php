@@ -72,6 +72,7 @@ final class QuickOrderController extends AbstractController
         private readonly ?MatrixActivationCheckerInterface $matrixActivationChecker = null,
         private readonly ?MatrixOrderHandlerInterface $matrixOrderHandler = null,
         private readonly ?RateLimiterFactory $ipLimiter = null,
+        private readonly ?string $exampleLines = null,
     ) {
     }
 
@@ -388,6 +389,7 @@ final class QuickOrderController extends AbstractController
             'mode' => $this->defaultMode,
             'max_lines' => $this->maxLines,
             'max_file_size' => $this->maxFileSize,
+            'example_lines' => $this->exampleLines,
             'csrf_id' => self::CSRF_ID,
         ];
     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `example_lines` option: the example shown as the placeholder of the paste box is configurable; the default is now a
+  translated, neutral example (`tmonier_quick_order.ui.lines_placeholder`) instead of a hard-coded one.
+
 ## 1.1.0 (2026-10-12)
 
 - Order matrix on product pages: live component `tmonier_quick_order:product:matrix` in

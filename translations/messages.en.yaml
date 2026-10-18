@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Order by product code: paste lines or upload a CSV file (up to %max% lines), check the preview, then add everything to your cart at once.'
         paste_lines: 'Paste your lines'
         paste_lines_help: 'One product per line: code and quantity separated by ";", "," or a tab (copy from a spreadsheet), or by a space before the quantity.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Or upload a CSV file'
         csv_help: 'Columns SKU and QTY, separated by commas, semicolons or tabs; %size% MB maximum.'
         download_template: 'Download the CSV template'

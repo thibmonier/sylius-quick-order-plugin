@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Bestel op productcode: plak regels of upload een CSV-bestand (maximaal %max% regels), controleer het voorbeeld en voeg alles in één keer toe aan je winkelwagen.'
         paste_lines: 'Plak je regels'
         paste_lines_help: 'Eén product per regel: code en aantal gescheiden door ";", "," of een tab (kopie uit een spreadsheet), of door een spatie vóór het aantal.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Of upload een CSV-bestand'
         csv_help: 'Kolommen SKU en QTY, gescheiden door komma''s, puntkomma''s of tabs; maximaal %size% MB.'
         download_template: 'CSV-sjabloon downloaden'

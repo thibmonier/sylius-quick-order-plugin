@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Nach Artikelnummer bestellen: Zeilen einfügen oder eine CSV-Datei hochladen (bis zu %max% Zeilen), die Vorschau prüfen und dann alles auf einmal in den Warenkorb legen.'
         paste_lines: 'Zeilen einfügen'
         paste_lines_help: 'Ein Produkt pro Zeile: Artikelnummer und Menge getrennt durch „;“, „,“ oder einen Tabulator (Kopie aus einer Tabelle) oder durch ein Leerzeichen vor der Menge.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Oder eine CSV-Datei hochladen'
         csv_help: 'Spalten SKU und QTY, getrennt durch Kommas, Semikolons oder Tabulatoren; höchstens %size% MB.'
         download_template: 'CSV-Vorlage herunterladen'

@@ -113,6 +113,7 @@ return static function (ContainerConfigurator $container): void {
             service('tmonier_quick_order.matrix.activation_checker'),
             service('tmonier_quick_order.matrix.order_handler'),
             service('limiter.tmonier_quick_order_ip')->nullOnInvalid(),
+            param('tmonier_quick_order.example_lines'),
         ])
         ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
         ->tag('controller.service_arguments')

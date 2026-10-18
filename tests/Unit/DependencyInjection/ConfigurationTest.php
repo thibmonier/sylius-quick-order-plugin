@@ -19,6 +19,7 @@ final class ConfigurationTest extends TestCase
             'expose_available_stock' => false,
             'max_file_size' => 1048576,
             'default_mode' => 'partial',
+            'example_lines' => null,
             'allow_guests' => true,
             'quantity_rounding' => 'reject',
             'rate_limit' => [
@@ -37,6 +38,13 @@ final class ConfigurationTest extends TestCase
                 'attribute' => null,
             ],
         ], (new Processor())->processConfiguration(new Configuration(), []));
+    }
+
+    public function testTheExampleLinesCanBeConfigured(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [['example_lines' => "VISS-001;2\nVISS-002;10"]]);
+
+        self::assertSame("VISS-001;2\nVISS-002;10", $config['example_lines']);
     }
 
     public function testInvalidValuesAreRefused(): void
