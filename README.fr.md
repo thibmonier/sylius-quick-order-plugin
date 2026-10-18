@@ -98,6 +98,7 @@ tmonier_sylius_quick_order:
     expose_available_stock: false  # true: "insufficient stock" lines tell how many units are left
     default_mode: partial       # or all_or_nothing
     allow_guests: true          # false: visitors are sent to the login page
+    example_lines: ~            # exemple affiché dans la zone de collage, ex. "ABC-001;2\nABC-002;10" (null : exemple neutre)
     quantity_rounding: reject   # or round_up (see "Pack sizes" below)
     matrix:
         enabled: true

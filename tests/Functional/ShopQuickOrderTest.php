@@ -42,6 +42,14 @@ final class ShopQuickOrderTest extends WebTestCase
         self::assertSelectorTextContains('[data-test-flash-messages]', '2 line(s) added');
     }
 
+    public function testThePasteBoxShowsTheNeutralTranslatedExampleByDefault(): void
+    {
+        $crawler = $this->client->request('GET', $this->url('/quick-order'));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame("SKU-001;2\nSKU-002,10\nSKU-003\t5", $crawler->filter('[data-test-tmonier-quick-order-lines]')->attr('placeholder'));
+    }
+
     public function testErrorsAreReportedWithADownloadableReport(): void
     {
         $a = $this->catalog->variant('QO-A-' . $this->catalog->suffix);

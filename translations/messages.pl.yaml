@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Zamawiaj według kodu produktu: wklej wiersze lub prześlij plik CSV (do %max% wierszy), sprawdź podgląd i dodaj wszystko do koszyka za jednym razem.'
         paste_lines: 'Wklej wiersze'
         paste_lines_help: 'Jeden produkt w wierszu: kod i ilość oddzielone znakiem „;”, „,” lub tabulatorem (kopia z arkusza kalkulacyjnego) albo spacją przed ilością.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Lub prześlij plik CSV'
         csv_help: 'Kolumny SKU i QTY oddzielone przecinkami, średnikami lub tabulatorami; maksymalnie %size% MB.'
         download_template: 'Pobierz szablon CSV'

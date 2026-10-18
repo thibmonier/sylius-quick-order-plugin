@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Ordina per codice prodotto: incolla le righe o carica un file CSV (fino a %max% righe), controlla l''anteprima e aggiungi tutto al carrello in una volta.'
         paste_lines: 'Incolla le righe'
         paste_lines_help: 'Un prodotto per riga: codice e quantità separati da «;», «,» o da una tabulazione (copia da un foglio di calcolo), oppure da uno spazio prima della quantità.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'Oppure carica un file CSV'
         csv_help: 'Colonne SKU e QTY, separate da virgole, punti e virgola o tabulazioni; massimo %size% MB.'
         download_template: 'Scarica il modello CSV'

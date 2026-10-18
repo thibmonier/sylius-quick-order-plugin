@@ -4,6 +4,7 @@ tmonier_quick_order:
         help: 'Pida por código de producto: pegue líneas o suba un archivo CSV (hasta %max% líneas), revise la vista previa y añada todo al carrito de una vez.'
         paste_lines: 'Pegue sus líneas'
         paste_lines_help: 'Un producto por línea: código y cantidad separados por «;», «,» o un tabulador (copia desde una hoja de cálculo), o por un espacio antes de la cantidad.'
+        lines_placeholder: "SKU-001;2\nSKU-002,10\nSKU-003\t5"
         or_upload_csv: 'O suba un archivo CSV'
         csv_help: 'Columnas SKU y QTY, separadas por comas, puntos y comas o tabuladores; %size% MB como máximo.'
         download_template: 'Descargar la plantilla CSV'
