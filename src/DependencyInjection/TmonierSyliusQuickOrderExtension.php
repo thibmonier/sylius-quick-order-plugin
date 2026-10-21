@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 final class TmonierSyliusQuickOrderExtension extends Extension implements PrependExtensionInterface
 {
@@ -44,7 +44,7 @@ final class TmonierSyliusQuickOrderExtension extends Extension implements Prepen
             $container->getExtensionConfig($this->getAlias()),
         ));
 
-        if ($config['rate_limit']['enabled'] && class_exists(RateLimiterFactory::class)) {
+        if ($config['rate_limit']['enabled'] && interface_exists(RateLimiterFactoryInterface::class)) {
             $limiter = [
                 'policy' => 'sliding_window',
                 'limit' => $config['rate_limit']['per_ip'],

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.2.1 (2026-10-21)
+
+- Fix: the rate limiter is typed `RateLimiterFactoryInterface` instead of the concrete `RateLimiterFactory`, which Symfony 8
+  no longer autowires (compatible with Symfony 7.4 and 8.x).
+
 ## 1.2.0 (2026-10-18)
 
 - `example_lines` option: the example shown as the placeholder of the paste box is configurable; the default is now a

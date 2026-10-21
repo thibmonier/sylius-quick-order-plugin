@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
@@ -36,14 +36,14 @@ final readonly class BulkAddItemsProcessor implements ProcessorInterface
         private string $defaultMode,
         private int $maxLines,
         private int $maxTotalQuantity = 20000,
-        private readonly ?RateLimiterFactory $ipLimiter = null,
+        private readonly ?RateLimiterFactoryInterface $ipLimiter = null,
         private readonly ?RequestStack $requestStack = null,
     ) {
     }
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): BulkAddItemsResult
     {
-        if ($this->ipLimiter instanceof RateLimiterFactory) {
+        if ($this->ipLimiter instanceof RateLimiterFactoryInterface) {
             $ip = $this->requestStack?->getCurrentRequest()?->getClientIp();
             if (!$this->ipLimiter->create(RateLimitKeys::ip($ip))->consume()->isAccepted()) {
                 throw new TooManyRequestsHttpException(message: 'too_many_requests');
