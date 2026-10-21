@@ -285,6 +285,9 @@ verify accounts: verify the buyer before logging in, for instance with
 
 This plugin is used in the [Sylius B2B demo](https://github.com/thibmonier/sylius-b2b-demo): a Sylius 2.3 shop with fictitious sample data where the B2B plugins work together. The source code, setup and fixtures of the demo are in that repository.
 
+- Online demo: [sylius-b2b.thibaut-monier.fr](https://sylius-b2b.thibaut-monier.fr)
+- Author: [Thibaut Monier](https://www.linkedin.com/in/thibautmonier/)
+
 The demo is an example, not a production setup.
 <!-- vitrine:demo-b2b:end -->
 

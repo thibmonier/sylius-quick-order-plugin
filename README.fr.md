@@ -298,6 +298,9 @@ vérifie pas les comptes : vérifiez l'acheteur avant de vous connecter, par exe
 
 Ce plugin est utilisé dans la [démo B2B Sylius](https://github.com/thibmonier/sylius-b2b-demo) : une boutique Sylius 2.3 avec des données d'exemple fictives, où les plugins B2B fonctionnent ensemble. Le code source, l'installation et les fixtures de la démo sont dans ce dépôt.
 
+- Démo en ligne : [sylius-b2b.thibaut-monier.fr](https://sylius-b2b.thibaut-monier.fr)
+- Auteur : [Thibaut Monier](https://www.linkedin.com/in/thibautmonier/)
+
 La démo est un exemple, pas une configuration de production.
 <!-- vitrine:demo-b2b:end -->
 
