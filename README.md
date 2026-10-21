@@ -46,7 +46,7 @@ your own rules; MySQL, MariaDB and PostgreSQL support (the plugin has no table).
 |---|---|
 | PHP | 8.2+ (8.3+ with Sylius 2.3) |
 | Sylius | 2.2.9+, 2.3 |
-| Symfony | 6.4, 7.4 (Sylius 2.2); 6.4, 7.4, 8.0 (Sylius 2.3) |
+| Symfony | 7.4 (Sylius 2.2); 7.4, 8.0 (Sylius 2.3) |
 
 Sylius 2.2.9 is the minimum because earlier 2.2 versions are affected by cart and payment
 security advisories (GHSA-2rv4-pjmm-7fxf, GHSA-vv4h-q2x8-74g4).

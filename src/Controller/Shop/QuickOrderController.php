@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\RateLimiter\RateLimiterFactory;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddMode;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkAddResult;
 use Tmonier\SyliusQuickOrderPlugin\Adder\BulkCartAdderInterface;
@@ -71,7 +71,7 @@ final class QuickOrderController extends AbstractController
         private readonly ?RepositoryInterface $productRepository = null,
         private readonly ?MatrixActivationCheckerInterface $matrixActivationChecker = null,
         private readonly ?MatrixOrderHandlerInterface $matrixOrderHandler = null,
-        private readonly ?RateLimiterFactory $ipLimiter = null,
+        private readonly ?RateLimiterFactoryInterface $ipLimiter = null,
         private readonly ?string $exampleLines = null,
     ) {
     }
@@ -397,7 +397,7 @@ final class QuickOrderController extends AbstractController
     /** Consumes one token from the IP limiter; returns true when the request must be rejected. */
     private function isRateLimited(Request $request): bool
     {
-        if (!$this->ipLimiter instanceof RateLimiterFactory) {
+        if (!$this->ipLimiter instanceof RateLimiterFactoryInterface) {
             return false;
         }
 

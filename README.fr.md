@@ -50,7 +50,7 @@ plugin n'a pas de table).
 |---|---|
 | PHP | 8.2+ (8.3+ avec Sylius 2.3) |
 | Sylius | 2.2.9+, 2.3 |
-| Symfony | 6.4, 7.4 (Sylius 2.2) ; 6.4, 7.4, 8.0 (Sylius 2.3) |
+| Symfony | 7.4 (Sylius 2.2) ; 7.4, 8.0 (Sylius 2.3) |
 
 Sylius 2.2.9 est le minimum, car les versions 2.2 antérieures sont concernées par des avis de
 sécurité sur le panier et le paiement (GHSA-2rv4-pjmm-7fxf, GHSA-vv4h-q2x8-74g4).
