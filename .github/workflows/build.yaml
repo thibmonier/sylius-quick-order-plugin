@@ -28,8 +28,8 @@ jobs:
 
         strategy:
             fail-fast: false
-            # Sylius 2.2: PHP >= 8.2, Symfony 6.4/7.4 (no Symfony 8). Sylius 2.3: PHP >= 8.3,
-            # Symfony 6.4/7.4/8.0 (Symfony 8 needs PHP 8.4; API Platform 5 and UX 3 are tested there).
+            # Sylius 2.2: PHP >= 8.2, Symfony 7.4 (no Symfony 8). Sylius 2.3: PHP >= 8.3,
+            # Symfony 7.4/8.0 (Symfony 8 needs PHP 8.4; API Platform 5 and UX 3 are tested there).
             matrix:
                 php: ["8.3", "8.4"]
                 symfony: ["^7.4"]
@@ -46,7 +46,7 @@ jobs:
 
                 include:
                     - php: "8.2"
-                      symfony: "^6.4"
+                      symfony: "^7.4"
                       sylius: "~2.2.0"
                       database: "mysql:8.4"
                       node: "22.x"
@@ -88,8 +88,6 @@ jobs:
 
             -
                 name: Run static analysis
-                # Symfony 6.4 Config builder is not typed enough for PHPStan at level max
-                if: matrix.symfony != '^6.4'
                 run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
             -

@@ -2,10 +2,12 @@
 
 ## Unreleased
 
-## 1.2.1 (2026-10-21)
+## 1.3.0 (2026-10-21)
 
 - Fix: the rate limiter is typed `RateLimiterFactoryInterface` instead of the concrete `RateLimiterFactory`, which Symfony 8
-  no longer autowires (compatible with Symfony 7.4 and 8.x).
+  no longer autowires.
+- **Symfony 6.4 is no longer supported**: the plugin now requires Symfony 7.4 or 8 (`RateLimiterFactoryInterface`
+  only exists since Symfony 7.3). PHP 8.2 stays supported with Symfony 7.4.
 
 ## 1.2.0 (2026-10-18)
 
