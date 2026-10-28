@@ -20,9 +20,14 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
+# No default token permission: every job asks for what it needs (US-209).
+permissions: {}
+
 jobs:
     tests:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
 
         name: "Sylius ${{ matrix.sylius }}, PHP ${{ matrix.php }}, Symfony ${{ matrix.symfony }}, ${{ matrix.database }}"
 
@@ -71,11 +76,13 @@ jobs:
 
         steps:
             -
-                uses: actions/checkout@v4
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    persist-credentials: false
 
             -
                 name: Build Sylius Test Application
-                uses: SyliusLabs/BuildTestAppAction@v4
+                uses: SyliusLabs/BuildTestAppAction@c3b108b5f3c299c55f429a8cf0ed88734d4f4979 # v4.3.1
                 with:
                     e2e_js: "yes"
                     cache_key: "${{ runner.os }}-php-${{ matrix.php }}-composer-${{ hashFiles('**/composer.json') }}"
@@ -85,6 +92,10 @@ jobs:
                     php_version: "${{ matrix.php }}"
                     sylius_version: "${{ matrix.sylius }}"
                     symfony_version: "${{ matrix.symfony }}"
+
+            -
+                name: Audit of the PHP dependencies
+                run: composer audit --abandoned=report
 
             -
                 name: Run static analysis
@@ -119,3 +130,20 @@ jobs:
             -
                 name: Run Non-unit PHPUnit tests
                 run: vendor/bin/phpunit --colors=always --testsuite=non-unit
+
+    # Static audit of the workflows themselves (US-209). Version and image are pinned, no network.
+    zizmor:
+        name: Workflow audit (zizmor)
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        timeout-minutes: 10
+        env:
+            ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.31.1@sha256:42d409dbb851d4c5d35a058cf042b828bea1e3f2884378c526eb0974780e18d9
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: zizmor (offline)
+              run: docker run --rm -v "$PWD:/work" -w /work "$ZIZMOR_IMAGE" --offline .github
