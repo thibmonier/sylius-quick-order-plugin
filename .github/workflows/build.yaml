@@ -28,6 +28,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+            checks: write
 
         name: "Sylius ${{ matrix.sylius }}, PHP ${{ matrix.php }}, Symfony ${{ matrix.symfony }}, ${{ matrix.database }}"
 
@@ -130,6 +131,62 @@ jobs:
             -
                 name: Run Non-unit PHPUnit tests
                 run: vendor/bin/phpunit --colors=always --testsuite=non-unit
+
+            -
+                name: Install PCOV for coverage
+                if: matrix.php == '8.4' && matrix.sylius == '~2.3.0' && matrix.symfony == '^7.4' && matrix.database == 'mysql:8.4' && github.ref == 'refs/heads/main'
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+                with:
+                    php-version: "8.4"
+                    coverage: pcov
+
+            # One matrix combination only, on main: the figure is published as a "coverage" check run (US-253).
+            # `|| true`: the test steps above already gate the build, this step only measures.
+            -
+                name: PHPUnit line coverage
+                if: matrix.php == '8.4' && matrix.sylius == '~2.3.0' && matrix.symfony == '^7.4' && matrix.database == 'mysql:8.4' && github.ref == 'refs/heads/main'
+                id: coverage
+                shell: bash
+                run: |
+                    mkdir -p build
+                    vendor/bin/phpunit --colors=never --testsuite=all --coverage-filter=src --coverage-clover build/coverage.xml || true
+                    if [ ! -f build/coverage.xml ]; then echo "No coverage report generated"; exit 0; fi
+                    COVERED=$(php -r '$x=simplexml_load_file("build/coverage.xml");echo (int)$x->project->metrics["coveredstatements"];')
+                    TOTAL=$(php -r '$x=simplexml_load_file("build/coverage.xml");echo (int)$x->project->metrics["statements"];')
+                    if [ "$TOTAL" -gt 0 ]; then
+                      RATE=$(php -r "printf('%.2f', 100*$COVERED/$TOTAL);")
+                      echo "rate=${RATE}" >> "$GITHUB_OUTPUT"
+                      echo "covered=${COVERED}" >> "$GITHUB_OUTPUT"
+                      echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
+                      {
+                        echo "### PHPUnit line coverage"
+                        echo "COVERAGE_LINES: ${RATE}"
+                        echo "\`${COVERED}/${TOTAL}\` statements covered"
+                      } >> "$GITHUB_STEP_SUMMARY"
+                    fi
+
+            -
+                name: Publish coverage check run
+                if: always() && steps.coverage.outputs.rate != ''
+                uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+                env:
+                    COV_RATE: ${{ steps.coverage.outputs.rate }}
+                    COV_COVERED: ${{ steps.coverage.outputs.covered }}
+                    COV_TOTAL: ${{ steps.coverage.outputs.total }}
+                with:
+                    script: |
+                        await github.rest.checks.create({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          name: 'coverage',
+                          head_sha: context.sha,
+                          status: 'completed',
+                          conclusion: 'success',
+                          output: {
+                            title: `Line coverage: ${process.env.COV_RATE}%`,
+                            summary: `COVERAGE_LINES: ${process.env.COV_RATE}\n${process.env.COV_COVERED}/${process.env.COV_TOTAL} statements covered`
+                          }
+                        });
 
     # Static audit of the workflows themselves (US-209). Version and image are pinned, no network.
     zizmor:
