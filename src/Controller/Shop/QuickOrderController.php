@@ -182,7 +182,7 @@ final class QuickOrderController extends AbstractController
 
     private function isRateLimited(Request $request): bool
     {
-        return $this->ipLimiter instanceof RateLimiterFactoryInterface
-            && !$this->ipLimiter->create(RateLimitKeys::ip($request->getClientIp()))->consume()->isAccepted();
+        return $this->ipLimiter instanceof RateLimiterFactoryInterface &&
+            !$this->ipLimiter->create(RateLimitKeys::ip($request->getClientIp()))->consume()->isAccepted();
     }
 }

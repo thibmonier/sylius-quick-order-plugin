@@ -11,7 +11,9 @@ use Tmonier\SyliusQuickOrderPlugin\Input\QuickOrderInput;
 final class QuickOrderSessionStorage
 {
     private const RESULT_KEY = '_tmonier_quick_order.result';
+
     private const PREVIEW_KEY = '_tmonier_quick_order.previews';
+
     private const MAX_PREVIEWS = 5;
 
     public function __construct(
