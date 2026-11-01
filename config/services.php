@@ -10,7 +10,11 @@ use Tmonier\SyliusQuickOrderPlugin\Adder\VariantLookup;
 use Tmonier\SyliusQuickOrderPlugin\Adder\VariantLookupInterface;
 use Tmonier\SyliusQuickOrderPlugin\Cart\CompositeLockedCartChecker;
 use Tmonier\SyliusQuickOrderPlugin\Cart\LockedCartCheckerInterface;
+use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\MatrixAddAction;
 use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\QuickOrderController;
+use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\QuickOrderCsvController;
+use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\QuickOrderSessionStorage;
+use Tmonier\SyliusQuickOrderPlugin\Controller\Shop\ReorderAction;
 use Tmonier\SyliusQuickOrderPlugin\Fixture\QuickOrderDemoCatalogFixture;
 use Tmonier\SyliusQuickOrderPlugin\Input\CsvParser;
 use Tmonier\SyliusQuickOrderPlugin\Input\PasteParser;
@@ -93,27 +97,72 @@ return static function (ContainerConfigurator $container): void {
     ;
 
     $services
+        ->set('tmonier_quick_order.session_storage', QuickOrderSessionStorage::class)
+        ->args([param('tmonier_quick_order.max_file_size')])
+    ;
+
+    $services
         ->set('tmonier_quick_order.controller.shop', QuickOrderController::class)
         ->args([
             service('sylius.context.cart'),
             service('tmonier_quick_order.bulk_cart_adder'),
             service('tmonier_quick_order.paste_parser'),
             service('tmonier_quick_order.csv_parser'),
-            service('tmonier_quick_order.csv_writer'),
-            service('tmonier_quick_order.reorder_input_factory'),
-            service('sylius.repository.order'),
-            service('sylius.context.customer'),
-            service('sylius.context.channel'),
+            service('tmonier_quick_order.session_storage'),
             param('tmonier_quick_order.allow_guests'),
             param('tmonier_quick_order.default_mode'),
             param('tmonier_quick_order.max_lines'),
             param('tmonier_quick_order.max_file_size'),
             param('tmonier_quick_order.max_total_quantity'),
+            service('limiter.tmonier_quick_order_ip')->nullOnInvalid(),
+            param('tmonier_quick_order.example_lines'),
+        ])
+        ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
+        ->tag('controller.service_arguments')
+        ->tag('container.service_subscriber')
+        ->public()
+    ;
+
+    $services
+        ->set('tmonier_quick_order.controller.shop.csv', QuickOrderCsvController::class)
+        ->args([
+            service('tmonier_quick_order.csv_writer'),
+            service('tmonier_quick_order.session_storage'),
+            param('tmonier_quick_order.allow_guests'),
+        ])
+        ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
+        ->tag('controller.service_arguments')
+        ->tag('container.service_subscriber')
+        ->public()
+    ;
+
+    $services
+        ->set('tmonier_quick_order.controller.shop.reorder', ReorderAction::class)
+        ->args([
+            service('sylius.context.cart'),
+            service('tmonier_quick_order.bulk_cart_adder'),
+            service('tmonier_quick_order.reorder_input_factory'),
+            service('sylius.repository.order'),
+            service('sylius.context.customer'),
+            service('sylius.context.channel'),
+            service('tmonier_quick_order.session_storage'),
+            service('limiter.tmonier_quick_order_ip')->nullOnInvalid(),
+        ])
+        ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
+        ->tag('controller.service_arguments')
+        ->tag('container.service_subscriber')
+        ->public()
+    ;
+
+    $services
+        ->set('tmonier_quick_order.controller.shop.matrix_add', MatrixAddAction::class)
+        ->args([
+            service('sylius.context.cart'),
+            service('sylius.context.channel'),
             service('sylius.repository.product'),
             service('tmonier_quick_order.matrix.activation_checker'),
             service('tmonier_quick_order.matrix.order_handler'),
             service('limiter.tmonier_quick_order_ip')->nullOnInvalid(),
-            param('tmonier_quick_order.example_lines'),
         ])
         ->call('setContainer', [service(\Psr\Container\ContainerInterface::class)])
         ->tag('controller.service_arguments')

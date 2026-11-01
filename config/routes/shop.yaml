@@ -26,19 +26,19 @@ tmonier_quick_order_shop_template:
     path: /quick-order/template.csv
     methods: [GET]
     defaults:
-        _controller: tmonier_quick_order.controller.shop::templateAction
+        _controller: tmonier_quick_order.controller.shop.csv::templateAction
 
 tmonier_quick_order_shop_report:
     path: /quick-order/report.csv
     methods: [GET]
     defaults:
-        _controller: tmonier_quick_order.controller.shop::reportAction
+        _controller: tmonier_quick_order.controller.shop.csv::reportAction
 
 tmonier_quick_order_shop_reorder:
     path: /account/orders/{number}/reorder
     methods: [POST]
     defaults:
-        _controller: tmonier_quick_order.controller.shop::reorderAction
+        _controller: tmonier_quick_order.controller.shop.reorder
 
 tmonier_quick_order_shop_matrix_add:
     path: /quick-order/products/{productId}/matrix
@@ -46,4 +46,4 @@ tmonier_quick_order_shop_matrix_add:
     requirements:
         productId: '\d+'
     defaults:
-        _controller: tmonier_quick_order.controller.shop::matrixAddAction
+        _controller: tmonier_quick_order.controller.shop.matrix_add
