@@ -130,6 +130,8 @@ jobs:
 
             -
                 name: Run Non-unit PHPUnit tests
+                # Runs even when the unit step failed, so a red commit shows both suites (A-56-1). The job still fails if either fails.
+                if: ${{ !cancelled() }}
                 run: vendor/bin/phpunit --colors=always --testsuite=non-unit
 
             -
